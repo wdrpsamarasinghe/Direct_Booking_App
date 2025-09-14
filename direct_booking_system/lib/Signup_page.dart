@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'signin_page.dart';
+import 'services/firebase_service.dart';
+import 'theme/app_theme.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({Key? key}) : super(key: key);
@@ -12,8 +15,23 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final FirebaseService _firebaseService = FirebaseService();
+  final _formKey = GlobalKey<FormState>();
+  
   bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
+  String? _selectedRole; // "Tour Guide", "Tourist", or "Admin"
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +42,8 @@ class _SignupPageState extends State<SignupPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              AppTheme.primaryBlue,
+              AppTheme.secondaryOrange,
             ],
           ),
         ),
@@ -43,14 +61,8 @@ class _SignupPageState extends State<SignupPage> {
                   width: 100,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: AppTheme.floatingShadow,
                   ),
                   child: const Icon(
                     Icons.hotel,
@@ -91,40 +103,117 @@ class _SignupPageState extends State<SignupPage> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                    color: AppTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: AppTheme.elevatedShadow,
                   ),
-                  child: Column(
-                    children: [
-                      // Full Name Field
-                      _buildTextField(
-                        controller: _nameController,
-                        labelText: "Full Name",
-                        prefixIcon: Icons.person_outline,
-                        keyboardType: TextInputType.name,
-                      ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        // Full Name Field
+                        _buildTextField(
+                          controller: _nameController,
+                          labelText: "Full Name",
+                          prefixIcon: Icons.person_outline,
+                          keyboardType: TextInputType.name,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your full name';
+                            }
+                            if (value.length < 2) {
+                              return 'Name must be at least 2 characters';
+                            }
+                            return null;
+                          },
+                        ),
                       
                       const SizedBox(height: 20),
                       
-                      // Email Field
-                      _buildTextField(
-                        controller: _emailController,
-                        labelText: "Email Address",
-                        prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
+                        // Email Field
+                        _buildTextField(
+                          controller: _emailController,
+                          labelText: "Email Address",
+                          prefixIcon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your email address';
+                            }
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                              return 'Please enter a valid email address';
+                            }
+                            return null;
+                          },
+                        ),
                       
                       const SizedBox(height: 20),
                       
-                      // Password Field
-                      _buildPasswordField(),
+                        // Role Dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedRole,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Tour Guide',
+                              child: Text('Tour Guide'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Tourist',
+                              child: Text('Tourist'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Admin',
+                              child: Text('Admin'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedRole = value;
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select a role';
+                            }
+                            return null;
+                          },
+                        decoration: InputDecoration(
+                          labelText: "Select Role",
+                          prefixIcon: Icon(
+                            Icons.badge_outlined,
+                            color: AppTheme.textSecondary,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppTheme.dividerBorder),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppTheme.dividerBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: AppTheme.surfaceVariant,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          labelStyle: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 14,
+                          ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 20),
+                        
+                        // Password Field
+                        _buildPasswordField(),
+                        
+                        const SizedBox(height: 20),
+
+                        // Confirm Password Field
+                        _buildConfirmPasswordField(),
                       
                       const SizedBox(height: 30),
                       
@@ -135,9 +224,9 @@ class _SignupPageState extends State<SignupPage> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleSignup,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF667eea),
+                            backgroundColor: AppTheme.primaryBlue,
                             foregroundColor: Colors.white,
-                            elevation: 0,
+                            elevation: 2,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -161,27 +250,28 @@ class _SignupPageState extends State<SignupPage> {
                                   ),
                                 ),
                         ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // Terms and Conditions
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              "By creating an account, you agree to our Terms of Service and Privacy Policy",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                height: 1.4,
+                        ),
+                        
+                        const SizedBox(height: 20),
+                        
+                        // Terms and Conditions
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "By creating an account, you agree to our Terms of Service and Privacy Policy",
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                  height: 1.4,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 
@@ -232,10 +322,12 @@ class _SignupPageState extends State<SignupPage> {
     required String labelText,
     required IconData prefixIcon,
     TextInputType? keyboardType,
+    String? Function(String?)? validator,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      validator: validator,
       style: const TextStyle(
         fontSize: 16,
         color: Colors.black87,
@@ -244,25 +336,33 @@ class _SignupPageState extends State<SignupPage> {
         labelText: labelText,
         prefixIcon: Icon(
           prefixIcon,
-          color: Colors.grey[600],
+          color: AppTheme.textSecondary,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
         ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: AppTheme.surfaceVariant,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        labelStyle: TextStyle(
-          color: Colors.grey[600],
+        labelStyle: const TextStyle(
+          color: AppTheme.textSecondary,
           fontSize: 14,
         ),
       ),
@@ -270,9 +370,18 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildPasswordField() {
-    return TextField(
+    return TextFormField(
       controller: _passwordController,
       obscureText: !_isPasswordVisible,
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter a password';
+        }
+        if (value.length < 6) {
+          return 'Password must be at least 6 characters';
+        }
+        return null;
+      },
       style: const TextStyle(
         fontSize: 16,
         color: Colors.black87,
@@ -281,12 +390,12 @@ class _SignupPageState extends State<SignupPage> {
         labelText: "Password",
         prefixIcon: Icon(
           Icons.lock_outline,
-          color: Colors.grey[600],
+          color: AppTheme.textSecondary,
         ),
         suffixIcon: IconButton(
           icon: Icon(
             _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-            color: Colors.grey[600],
+            color: AppTheme.textSecondary,
           ),
           onPressed: () {
             setState(() {
@@ -296,21 +405,94 @@ class _SignupPageState extends State<SignupPage> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
         ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: AppTheme.surfaceVariant,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        labelStyle: TextStyle(
-          color: Colors.grey[600],
+        labelStyle: const TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmPasswordField() {
+    return TextFormField(
+      controller: _confirmPasswordController,
+      obscureText: !_isConfirmPasswordVisible,
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please confirm your password';
+        }
+        if (value != _passwordController.text) {
+          return 'Passwords do not match';
+        }
+        return null;
+      },
+      style: const TextStyle(
+        fontSize: 16,
+        color: Colors.black87,
+      ),
+      decoration: InputDecoration(
+        labelText: "Confirm Password",
+        prefixIcon: Icon(
+          Icons.lock_outline,
+          color: AppTheme.textSecondary,
+        ),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+            color: AppTheme.textSecondary,
+          ),
+          onPressed: () {
+            setState(() {
+              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+            });
+          },
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
+        ),
+        filled: true,
+        fillColor: AppTheme.surfaceVariant,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        labelStyle: const TextStyle(
+          color: AppTheme.textSecondary,
           fontSize: 14,
         ),
       ),
@@ -318,27 +500,87 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   void _handleSignup() async {
+    // Validate form first
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate loading
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    // Show success message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          backgroundColor: Color(0xFF667eea),
-        ),
+    try {
+      // Call Firebase signup method
+      await _firebaseService.signUpUser(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        role: _selectedRole!,
       );
-      // Navigate back to previous screen
-      Navigator.pop(context);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Account created successfully as ${_selectedRole!}!'),
+            backgroundColor: AppTheme.primaryBlue,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        // Navigate back to sign in page
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SigninPage(),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'An error occurred. Please try again.';
+      
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'The password provided is too weak.';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'An account already exists for this email.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'The email address is not valid.';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Email/password accounts are not enabled.';
+          break;
+        default:
+          errorMessage = e.message ?? 'An error occurred. Please try again.';
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppTheme.errorRed,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: ${e.toString()}'),
+            backgroundColor: AppTheme.errorRed,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 }

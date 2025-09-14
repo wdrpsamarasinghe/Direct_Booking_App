@@ -41,45 +41,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'your-web-api-key',
-    appId: 'your-web-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
-    authDomain: 'your-project-id.firebaseapp.com',
-    storageBucket: 'your-project-id.appspot.com',
+    apiKey: 'AIzaSyCWY2gK_wZBDXiN1sMJfkWxV2Fv2eXfb14',
+    appId: '1:394868933088:web:b8c7cf9e529d7ea637eb85',
+    messagingSenderId: '394868933088',
+    projectId: 'direct-booking-app-754d8',
+    authDomain: 'direct-booking-app-754d8.firebaseapp.com',
+    storageBucket: 'direct-booking-app-754d8.firebasestorage.app',
+    measurementId: 'G-RRD7ZXFLEY',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'your-android-api-key',
-    appId: 'your-android-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
+    apiKey: 'AIzaSyBYueGZUbYcMR6EDWx8moOnfQ4AL4I4vkg',
+    appId: '1:394868933088:android:1e25fa0097a664f537eb85',
+    messagingSenderId: '394868933088',
+    projectId: 'direct-booking-app-754d8',
+    storageBucket: 'direct-booking-app-754d8.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'your-ios-api-key',
-    appId: 'your-ios-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
+    apiKey: 'AIzaSyCZOFIY5flvzBNio2rtQxd3DDtw_UZeYfs',
+    appId: '1:394868933088:ios:87fd72f60551069337eb85',
+    messagingSenderId: '394868933088',
+    projectId: 'direct-booking-app-754d8',
+    storageBucket: 'direct-booking-app-754d8.firebasestorage.app',
     iosBundleId: 'com.example.directBookingSystem',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'your-macos-api-key',
-    appId: 'your-macos-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
+    apiKey: 'AIzaSyCZOFIY5flvzBNio2rtQxd3DDtw_UZeYfs',
+    appId: '1:394868933088:ios:87fd72f60551069337eb85',
+    messagingSenderId: '394868933088',
+    projectId: 'direct-booking-app-754d8',
+    storageBucket: 'direct-booking-app-754d8.firebasestorage.app',
     iosBundleId: 'com.example.directBookingSystem',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'your-windows-api-key',
-    appId: 'your-windows-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
+    apiKey: 'AIzaSyCWY2gK_wZBDXiN1sMJfkWxV2Fv2eXfb14',
+    appId: '1:394868933088:web:73f965809af76cbf37eb85',
+    messagingSenderId: '394868933088',
+    projectId: 'direct-booking-app-754d8',
+    authDomain: 'direct-booking-app-754d8.firebaseapp.com',
+    storageBucket: 'direct-booking-app-754d8.firebasestorage.app',
+    measurementId: 'G-STFNZSGX5B',
   );
+
 }

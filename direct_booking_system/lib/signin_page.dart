@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/firebase_service.dart';
+import 'guide_home_page.dart';
+import 'tourist_home_page.dart';
+import 'admin_home_page.dart';
+import 'theme/app_theme.dart';
+import 'Signup_page.dart';
 
 class SigninPage extends StatefulWidget {
   const SigninPage({Key? key}) : super(key: key);
@@ -12,10 +18,59 @@ class SigninPage extends StatefulWidget {
 class _SigninPageState extends State<SigninPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final _firebaseService = FirebaseService();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _rememberMe = false;
+  final FirebaseService _firebaseService = FirebaseService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedCredentials();
+    _checkAuthState();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // Load remembered credentials from SharedPreferences
+  Future<void> _loadRememberedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _rememberMe = prefs.getBool('remember_me') ?? false;
+      if (_rememberMe) {
+        _emailController.text = prefs.getString('remembered_email') ?? '';
+        _passwordController.text = prefs.getString('remembered_password') ?? '';
+      }
+    });
+  }
+
+  // Save credentials to SharedPreferences
+  Future<void> _saveCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setBool('remember_me', true);
+      await prefs.setString('remembered_email', _emailController.text.trim());
+      await prefs.setString('remembered_password', _passwordController.text);
+    } else {
+      await prefs.remove('remember_me');
+      await prefs.remove('remembered_email');
+      await prefs.remove('remembered_password');
+    }
+  }
+
+  // Check if user is already authenticated
+  Future<void> _checkAuthState() async {
+    final user = _firebaseService.currentUser;
+    if (user != null) {
+      // User is already signed in, navigate to appropriate home page
+      await _navigateToHomePage(user.uid);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,8 +81,8 @@ class _SigninPageState extends State<SigninPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              AppTheme.primaryBlue,
+              AppTheme.secondaryOrange,
             ],
           ),
         ),
@@ -61,17 +116,11 @@ class _SigninPageState extends State<SigninPage> {
                   width: 100,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: AppTheme.floatingShadow,
                   ),
                   child: const Icon(
-                    Icons.hotel,
+                    Icons.explore,
                     size: 50,
                     color: Colors.white,
                   ),
@@ -109,15 +158,9 @@ class _SigninPageState extends State<SigninPage> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                    color: AppTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: AppTheme.elevatedShadow,
                   ),
                   child: Column(
                     children: [
@@ -134,6 +177,9 @@ class _SigninPageState extends State<SigninPage> {
                       // Password Field
                       _buildPasswordField(),
                       
+                      const SizedBox(height: 20),
+                      
+                      // (User role selection removed; role is derived from Firestore after sign-in)
                       const SizedBox(height: 16),
                       
                       // Remember Me & Forgot Password
@@ -149,16 +195,16 @@ class _SigninPageState extends State<SigninPage> {
                                     _rememberMe = value ?? false;
                                   });
                                 },
-                                activeColor: const Color(0xFF667eea),
+                                activeColor: AppTheme.primaryBlue,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                               ),
                               const Text(
                                 'Remember me',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF4a5568),
+                                  color: AppTheme.textSecondary,
                                 ),
                               ),
                             ],
@@ -171,18 +217,18 @@ class _SigninPageState extends State<SigninPage> {
                             onTap: () {
                               // Handle forgot password
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Forgot password feature coming soon!'),
-                                  backgroundColor: Color(0xFF667eea),
-                                ),
+                              const SnackBar(
+                                content: Text('Forgot password feature coming soon!'),
+                                backgroundColor: AppTheme.primaryBlue,
+                              ),
                               );
                             },
                             child: const Text(
                               'Forgot Password?',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF667eea),
+                                color: AppTheme.primaryBlue,
                                 decoration: TextDecoration.underline,
                               ),
                             ),
@@ -199,9 +245,9 @@ class _SigninPageState extends State<SigninPage> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleSignin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF667eea),
+                            backgroundColor: AppTheme.primaryBlue,
                             foregroundColor: Colors.white,
-                            elevation: 0,
+                            elevation: 2,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -307,7 +353,12 @@ class _SigninPageState extends State<SigninPage> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignupPage(),
+                          ),
+                        );
                       },
                       child: const Text(
                         "Sign Up",
@@ -346,25 +397,25 @@ class _SigninPageState extends State<SigninPage> {
         labelText: labelText,
         prefixIcon: Icon(
           prefixIcon,
-          color: Colors.grey[600],
+          color: AppTheme.textSecondary,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
         ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: AppTheme.surfaceVariant,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        labelStyle: TextStyle(
-          color: Colors.grey[600],
+        labelStyle: const TextStyle(
+          color: AppTheme.textSecondary,
           fontSize: 14,
         ),
       ),
@@ -383,12 +434,12 @@ class _SigninPageState extends State<SigninPage> {
         labelText: "Password",
         prefixIcon: Icon(
           Icons.lock_outline,
-          color: Colors.grey[600],
+          color: AppTheme.textSecondary,
         ),
         suffixIcon: IconButton(
           icon: Icon(
             _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-            color: Colors.grey[600],
+            color: AppTheme.textSecondary,
           ),
           onPressed: () {
             setState(() {
@@ -398,26 +449,28 @@ class _SigninPageState extends State<SigninPage> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: const BorderSide(color: AppTheme.dividerBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
         ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: AppTheme.surfaceVariant,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        labelStyle: TextStyle(
-          color: Colors.grey[600],
+        labelStyle: const TextStyle(
+          color: AppTheme.textSecondary,
           fontSize: 14,
         ),
       ),
     );
   }
+
+  // (Role dropdown removed)
 
   Widget _buildSocialButton({
     required IconData icon,
@@ -432,8 +485,8 @@ class _SigninPageState extends State<SigninPage> {
         icon: Icon(icon, size: 20),
         label: Text(text),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF4a5568),
-          side: BorderSide(color: Colors.grey[300]!),
+          foregroundColor: AppTheme.textPrimary,
+          side: const BorderSide(color: AppTheme.dividerBorder),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -444,11 +497,14 @@ class _SigninPageState extends State<SigninPage> {
   }
 
   void _handleSignin() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all fields'),
-          backgroundColor: Colors.red,
+          content: Text('Please enter email and password'),
+          backgroundColor: Colors.redAccent,
         ),
       );
       return;
@@ -459,65 +515,110 @@ class _SigninPageState extends State<SigninPage> {
     });
 
     try {
-      await _firebaseService.signInWithEmailAndPassword(
-        _emailController.text.trim(),
-        _passwordController.text,
+      // Firebase sign in
+      final credential = await _firebaseService
+          .signInWithEmailAndPassword(email, password);
+
+      final user = credential?.user;
+      if (user == null) throw FirebaseAuthException(code: 'user-null', message: 'Failed to sign in.');
+
+      // Save credentials if "Remember Me" is checked
+      await _saveCredentials();
+
+      // Navigate to appropriate home page
+      await _navigateToHomePage(user.uid);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Signed in successfully'),
+          backgroundColor: AppTheme.primaryBlue,
+        ),
       );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Signed in successfully!'),
-            backgroundColor: Color(0xFF667eea),
-          ),
-        );
-        // Navigate back to previous screen
-        Navigator.pop(context);
-      }
     } on FirebaseAuthException catch (e) {
-      String message = 'An error occurred';
-      if (e.code == 'user-not-found') {
-        message = 'No user found with this email';
-      } else if (e.code == 'wrong-password') {
-        message = 'Wrong password';
-      } else if (e.code == 'invalid-email') {
-        message = 'Invalid email address';
-      } else if (e.code == 'user-disabled') {
-        message = 'This account has been disabled';
-      } else if (e.code == 'too-many-requests') {
-        message = 'Too many failed attempts. Please try again later';
+      if (!mounted) return;
+      String message = 'Authentication failed';
+      switch (e.code) {
+        case 'invalid-credential':
+        case 'wrong-password':
+          message = 'Invalid email or password';
+          break;
+        case 'user-not-found':
+          message = 'No user found for that email';
+          break;
+        case 'user-disabled':
+          message = 'User account is disabled';
+          break;
+        default:
+          message = e.message ?? message;
       }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  // Navigate to appropriate home page based on user role
+  Future<void> _navigateToHomePage(String userId) async {
+    try {
+      // Fetch user role from Firestore
+      final doc = await _firebaseService.getUserData(userId);
+      final data = doc.data() as Map<String, dynamic>?;
+      final role = (data?['role'] as String?) ?? 'Tourist';
+
+      // Debug logging
+      print('DEBUG: User ID: $userId');
+      print('DEBUG: User data: $data');
+      print('DEBUG: Role from Firestore: $role');
+
+      // Decide destination based on role (from Firestore)
+      Widget targetPage;
+      switch (role.toLowerCase()) {
+        case 'tour guide':
+          targetPage = const GuideHomePage();
+          break;
+        case 'admin':
+          targetPage = const AdminHomePage();
+          break;
+        case 'tourist':
+        default:
+          targetPage = const TouristHomePage();
+      }
+
+      print('DEBUG: Navigating to: ${targetPage.runtimeType}');
+      
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => targetPage),
+        (route) => false,
+      );
+    } catch (e) {
+      // If role fetch fails, default to Tourist home page
+      print('DEBUG: Error fetching user role: $e');
+      print('DEBUG: Defaulting to TouristHomePage');
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const TouristHomePage()),
+        (route) => false,
+      );
+    }
   }
 }

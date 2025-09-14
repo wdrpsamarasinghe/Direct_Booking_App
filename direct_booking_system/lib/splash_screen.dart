@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'signup_page.dart';
+import 'signin_page.dart';
+import 'theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -92,13 +93,13 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 600));
     _fadeController.forward();
     
-    // Navigate to signup page after animations complete
+    // Navigate to signin page after animations complete
     await Future.delayed(const Duration(milliseconds: 2000));
     if (mounted) {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const SignupPage(),
+          pageBuilder: (context, animation, secondaryAnimation) => const SigninPage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -118,6 +119,15 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+    final double shortestSide = screenSize.shortestSide;
+    // Responsive sizing based on device size
+    final double logoContainerSize = (shortestSide * 0.35).clamp(110.0, 200.0);
+    final double logoIconSize = (logoContainerSize * 0.53).clamp(60.0, 120.0);
+    final double appTitleSize = (shortestSide * 0.09).clamp(26.0, 42.0);
+    final double taglineSize = (shortestSide * 0.04).clamp(12.0, 18.0);
+    final double bottomSpace = (screenSize.height * 0.07).clamp(36.0, 80.0);
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -125,8 +135,8 @@ class _SplashScreenState extends State<SplashScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              AppTheme.primaryBlue,
+              AppTheme.secondaryOrange,
             ],
           ),
         ),
@@ -144,22 +154,15 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Transform.rotate(
                       angle: _logoRotationAnimation.value * 2 * 3.14159,
                       child: Container(
-                        height: 150,
-                        width: 150,
+                        height: logoContainerSize,
+                        width: logoContainerSize,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(40),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 30,
-                              offset: const Offset(0, 15),
-                            ),
-                          ],
+                          boxShadow: AppTheme.floatingShadow,
                         ),
                         child: const Icon(
-                          Icons.hotel,
-                          size: 80,
+                          Icons.explore,
                           color: Colors.white,
                         ),
                       ),
@@ -173,10 +176,10 @@ class _SplashScreenState extends State<SplashScreen>
               // App name with slide animation
               SlideTransition(
                 position: _textSlideAnimation,
-                child: const Text(
-                  'Direct Booking',
+                child: Text(
+                  'Guide Pro',
                   style: TextStyle(
-                    fontSize: 36,
+                    fontSize: appTitleSize,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: 1.2,
@@ -190,10 +193,10 @@ class _SplashScreenState extends State<SplashScreen>
               // Tagline with fade animation
               FadeTransition(
                 opacity: _fadeAnimation,
-                child: const Text(
-                  'Your Gateway to Perfect Stays',
+                child: Text(
+                  'Manage Your Tours with Ease',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: taglineSize,
                     color: Colors.white70,
                     letterSpacing: 0.5,
                   ),
@@ -229,7 +232,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
               
-              const SizedBox(height: 60),
+              SizedBox(height: bottomSpace),
             ],
           ),
         ),
