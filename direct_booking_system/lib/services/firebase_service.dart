@@ -1959,7 +1959,7 @@ class FirebaseService {
       if (guideDoc.exists) {
         Map<String, dynamic> guideData = guideDoc.data() as Map<String, dynamic>;
         
-        if (!guideData['profileCompleted'] ?? false) {
+        if (!(guideData['profileCompleted'] ?? false)) {
           notifications.add({
             'id': 'profile_incomplete',
             'notificationType': 'system',

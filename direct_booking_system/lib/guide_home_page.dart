@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'services/firebase_service.dart';
+import 'services/notification_service.dart';
 import 'signin_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'settings_page.dart';
 import 'create_profile_page.dart';
 import 'guide_trips_page.dart';
+import 'guide_notifications_page.dart';
 import 'trip_application_form.dart';
 import 'theme/app_theme.dart';
+import 'components/notification_badge.dart';
 
 class GuideHomePage extends StatefulWidget {
   const GuideHomePage({Key? key}) : super(key: key);
@@ -98,16 +101,30 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   final FirebaseService _firebaseService = FirebaseService();
+  final NotificationService _notificationService = NotificationService();
   List<Map<String, dynamic>> _reviews = [];
   double _averageRating = 0.0;
   int _reviewCount = 0;
   bool _isLoadingReviews = true;
   String? _profileImageUrl;
+  
+  // Notification state
+  Map<String, List<Map<String, dynamic>>> _notifications = {
+    'urgent': [],
+    'tours': [],
+    'reviews': [],
+    'payments': [],
+    'reminders': [],
+    'system': [],
+  };
+  int _totalUnreadCount = 0;
+  bool _isLoadingNotifications = true;
 
   @override
   void initState() {
     super.initState();
     _loadReviewsData();
+    _initializeNotifications();
   }
 
   Future<void> _loadReviewsData() async {
@@ -143,6 +160,69 @@ class _HomeContentState extends State<HomeContent> {
       if (mounted) {
         setState(() {
           _isLoadingReviews = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    try {
+      final user = _firebaseService.currentUser;
+      if (user == null) return;
+
+      print('🔔 Initializing notifications for guide: ${user.uid}');
+      
+      // Initialize notification service
+      await _notificationService.initialize();
+      
+      // Subscribe to user-specific topics
+      await _notificationService.subscribeToUserTopics(user.uid, 'Tour Guide');
+      
+      // Load notifications
+      await _loadNotifications();
+      
+    } catch (e) {
+      print('❌ Error initializing notifications: $e');
+    }
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final user = _firebaseService.currentUser;
+      if (user == null) return;
+
+      print('🔔 Loading notifications for guide: ${user.uid}');
+      
+      // Get comprehensive notifications
+      Map<String, List<Map<String, dynamic>>> notifications = 
+          await _firebaseService.getComprehensiveGuideNotifications(user.uid);
+      
+      // Calculate total unread count
+      int totalUnread = 0;
+      for (var category in notifications.values) {
+        for (var notification in category) {
+          if (!(notification['isRead'] ?? false)) {
+            totalUnread++;
+          }
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _notifications = notifications;
+          _totalUnreadCount = totalUnread;
+          _isLoadingNotifications = false;
+        });
+      }
+      
+      print('📊 Loaded ${notifications.values.expand((x) => x).length} notifications');
+      print('🔴 Total unread: $totalUnread');
+      
+    } catch (e) {
+      print('❌ Error loading notifications: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingNotifications = false;
         });
       }
     }
@@ -308,11 +388,19 @@ class _HomeContentState extends State<HomeContent> {
           ),
           child: Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {
-                  _showNotifications(widget.parentContext);
+              NotificationIcon(
+                count: _totalUnreadCount,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const GuideNotificationsPage(),
+                    ),
+                  );
                 },
+                icon: Icons.notifications_outlined,
+                iconColor: AppTheme.textPrimary,
+                iconSize: 20,
               ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
@@ -795,6 +883,7 @@ class _HomeContentState extends State<HomeContent> {
       ),
     );
   }
+
 
   Widget _buildStatCard({
     required IconData icon,

@@ -38,6 +38,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   
   List<String> _selectedLanguages = [];
   List<String> _selectedSpecialties = [];
+  String? _selectedLocation;
   
   DateTime? _dateOfBirth;
   int? _selectedExperience;
@@ -57,6 +58,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
     'Historical Tours', 'Cultural Tours', 'Nature Tours', 'Adventure Tours',
     'Food Tours', 'Photography Tours', 'Wildlife Tours', 'Religious Tours',
     'City Tours', 'Beach Tours', 'Mountain Tours', 'Museum Tours'
+  ];
+
+  final List<String> _sriLankanDistricts = [
+    'Colombo',
+    'Gampaha',
+    'Kalutara',
+    'Kandy',
+    'Matale',
+    'Nuwara Eliya',
+    'Galle',
+    'Matara',
+    'Hambantota',
+    'Jaffna',
+    'Kilinochchi',
+    'Mannar',
+    'Mullaitivu',
+    'Vavuniya',
+    'Batticaloa',
+    'Ampara',
+    'Trincomalee',
+    'Kurunegala',
+    'Puttalam',
+    'Anuradhapura',
+    'Polonnaruwa',
+    'Badulla',
+    'Moneragala',
+    'Ratnapura',
+    'Kegalle'
   ];
 
   @override
@@ -111,6 +140,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             _phoneController.text = userData['phone'] ?? '';
             _emailController.text = userData['email'] ?? '';
             _locationController.text = userData['location'] ?? '';
+            _selectedLocation = userData['location'];
             _hourlyRateController.text = userData['hourlyRate']?.toString() ?? '';
             _dailyRateController.text = userData['dailyRate']?.toString() ?? '';
             _profileImageUrl = profileImageUrl;
@@ -342,30 +372,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 ],
               ),
-              child: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                  ? ClipOval(
-                      child: _buildProfileImage(),
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 40,
-                      ),
-                    ),
+              child: _buildProfileImageWidget(),
             ),
           ),
           const SizedBox(height: 15),
           Text(
-            _profileImageUrl != null 
+            (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) || 
+            _profileImage != null || 
+            _profileImageBase64 != null
                 ? (kIsWeb ? 'Image Uploaded (Web)' : 'Change Photo')
-                : 'Add Profile Photo',
+                : 'Add Photo from Gallery',
             style: const TextStyle(
               color: Color(0xFF667eea),
               fontWeight: FontWeight.w600,
@@ -373,7 +389,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ),
           const SizedBox(height: 8),
-          if (_profileImageUrl != null)
+          if ((_profileImageUrl != null && _profileImageUrl!.isNotEmpty) || 
+              _profileImage != null || 
+              _profileImageBase64 != null)
             Column(
               children: [
                 TextButton(
@@ -449,16 +467,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           const SizedBox(height: 20),
           _buildDatePickerField(),
           const SizedBox(height: 20),
-          _buildTextField(
-            controller: _locationController,
-            label: 'Location (Optional)',
-            hint: 'Colombo, Sri Lanka',
-            icon: Icons.location_on,
-            validator: (value) {
-              // Location is now optional - no validation needed
-              return null;
-            },
-          ),
+          _buildLocationDropdown(),
         ],
       ),
     );
@@ -998,6 +1007,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Widget _buildLocationDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedLocation,
+      decoration: InputDecoration(
+        labelText: 'Location (Optional)',
+        hintText: 'Select your district',
+        prefixIcon: const Icon(Icons.location_on, color: Color(0xFF667eea)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF7FAFC),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      items: _sriLankanDistricts.map((String district) {
+        return DropdownMenuItem<String>(
+          value: district,
+          child: Text(district),
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedLocation = newValue;
+          _locationController.text = newValue ?? '';
+        });
+      },
+      validator: (value) {
+        // Location is optional - no validation needed
+        return null;
+      },
+    );
+  }
+
   Future<void> _pickDocument(String documentType) async {
     try {
       final XFile? file = await _picker.pickImage(
@@ -1125,86 +1176,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   void _showImagePickerOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Select Photo Source',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2d3748),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildImageSourceOption(
-                  icon: Icons.camera_alt,
-                  label: 'Camera',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.camera);
-                  },
-                ),
-                _buildImageSourceOption(
-                  icon: Icons.photo_library,
-                  label: 'Gallery',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.gallery);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
+    // Directly open gallery without showing modal
+    _pickImage(ImageSource.gallery);
   }
 
-  Widget _buildImageSourceOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF667eea).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFF667eea).withOpacity(0.3),
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: const Color(0xFF667eea),
-              size: 40,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF667eea),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -1225,6 +1200,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         
         setState(() {
           _profileImage = File(image.path);
+          _isLoadingImage = true;
         });
         
         // Upload the image immediately for web compatibility
@@ -1289,6 +1265,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _isLoadingImage = false;
       });
     }
+  }
+
+  Widget _buildProfileImageWidget() {
+    final hasImage = (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) || 
+                    _profileImage != null || 
+                    _profileImageBase64 != null;
+    
+    print('🖼️ Image display check: hasImage=$hasImage, _profileImageUrl=$_profileImageUrl, _profileImage=$_profileImage, _profileImageBase64=${_profileImageBase64 != null}');
+    
+    return hasImage
+        ? ClipOval(
+            child: _buildProfileImage(),
+          )
+        : Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+              ),
+            ),
+            child: const Icon(
+              Icons.photo_library,
+              color: Colors.white,
+              size: 40,
+            ),
+          );
   }
 
   Widget _buildProfileImage() {
@@ -1378,49 +1380,72 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildMobileProfileImage() {
-    return Image.network(
-      _profileImageUrl!,
-      width: 120,
-      height: 120,
-      fit: BoxFit.cover,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+    // If we have a local file, show it immediately
+    if (_profileImage != null) {
+      return Image.file(
+        _profileImage!,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading local image: $error');
+          return _buildMobileFallbackImage();
+        },
+      );
+    }
+    
+    // If we have a network URL, load it
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      return Image.network(
+        _profileImageUrl!,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+              ),
             ),
-          ),
-          child: const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              strokeWidth: 2,
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 2,
+              ),
             ),
-          ),
-        );
-      },
-      errorBuilder: (context, error, stackTrace) {
-        print('❌ Error loading profile image: $error');
-        print('❌ Image URL: $_profileImageUrl');
-        print('❌ Stack trace: $stackTrace');
-        
-        return Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-            ),
-          ),
-          child: const Icon(
-            Icons.camera_alt,
-            color: Colors.white,
-            size: 30,
-          ),
-        );
-      },
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading profile image: $error');
+          print('❌ Image URL: $_profileImageUrl');
+          print('❌ Stack trace: $stackTrace');
+          return _buildMobileFallbackImage();
+        },
+      );
+    }
+    
+    // Fallback if no image is available
+    return _buildMobileFallbackImage();
+  }
+
+  Widget _buildMobileFallbackImage() {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+        ),
+      ),
+      child: const Icon(
+        Icons.photo_library,
+        color: Colors.white,
+        size: 30,
+      ),
     );
   }
 
@@ -1505,7 +1530,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       
       setState(() {
         _profileImageUrl = imageUrl;
-        _profileImage = null; // Clear the file reference
+        _isLoadingImage = false;
+        // Keep _profileImage for immediate display, it will be cleared on next app restart
       });
       
       print('✅ Image uploaded successfully, URL: $imageUrl');
@@ -1645,7 +1671,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'bio': _bioController.text.trim(),
         'phone': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
-        'location': _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : null,
+        'location': _selectedLocation,
         'hourlyRate': int.tryParse(_hourlyRateController.text.trim()) ?? 0,
         'dailyRate': int.tryParse(_dailyRateController.text.trim()) ?? 0,
         'languages': _selectedLanguages,

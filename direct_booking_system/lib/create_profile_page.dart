@@ -31,6 +31,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   
   List<String> _selectedLanguages = [];
   List<String> _selectedSpecialties = [];
+  String? _selectedLocation;
   
   bool _isLoading = false;
   bool _isLoadingData = true;
@@ -56,6 +57,34 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     'Historical Tours', 'Cultural Tours', 'Nature Tours', 'Adventure Tours',
     'Food Tours', 'Photography Tours', 'Wildlife Tours', 'Religious Tours',
     'City Tours', 'Beach Tours', 'Mountain Tours', 'Museum Tours'
+  ];
+
+  final List<String> _sriLankanDistricts = [
+    'Colombo',
+    'Gampaha',
+    'Kalutara',
+    'Kandy',
+    'Matale',
+    'Nuwara Eliya',
+    'Galle',
+    'Matara',
+    'Hambantota',
+    'Jaffna',
+    'Kilinochchi',
+    'Mannar',
+    'Mullaitivu',
+    'Vavuniya',
+    'Batticaloa',
+    'Ampara',
+    'Trincomalee',
+    'Kurunegala',
+    'Puttalam',
+    'Anuradhapura',
+    'Polonnaruwa',
+    'Badulla',
+    'Moneragala',
+    'Ratnapura',
+    'Kegalle'
   ];
 
   @override
@@ -90,6 +119,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
             _phoneController.text = userData['phone'] ?? '';
             _emailController.text = userData['email'] ?? '';
             _locationController.text = userData['location'] ?? '';
+            _selectedLocation = userData['location'];
             _hourlyRateController.text = userData['hourlyRate']?.toString() ?? '';
             _dailyRateController.text = userData['dailyRate']?.toString() ?? '';
             _profileImageUrl = userData['profileImageUrl'];
@@ -173,9 +203,9 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFf7fafc),
       appBar: AppBar(
-        title: Text(
-          _profileImageUrl != null ? 'Edit Profile' : 'Create Profile',
-          style: const TextStyle(
+        title: const Text(
+          'Create Profile',
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Color(0xFF2d3748),
           ),
@@ -340,7 +370,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                             ),
                           ),
                           child: const Icon(
-                            Icons.camera_alt,
+                            Icons.photo_library,
                             color: Colors.white,
                             size: 40,
                           ),
@@ -349,7 +379,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           ),
           const SizedBox(height: 15),
           Text(
-            _profileImage != null || _profileImageUrl != null ? 'Change Photo' : 'Add Profile Photo (Optional)',
+            _profileImage != null || _profileImageUrl != null ? 'Change Photo' : 'Add Photo from Gallery (Optional)',
             style: const TextStyle(
               color: Color(0xFF667eea),
               fontWeight: FontWeight.w600,
@@ -392,16 +422,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           const SizedBox(height: 20),
           _buildDatePickerField(),
           const SizedBox(height: 20),
-          _buildTextField(
-            controller: _locationController,
-            label: 'Location (Optional)',
-            hint: 'Colombo, Sri Lanka',
-            icon: Icons.location_on,
-            validator: (value) {
-              // Location is now optional - no validation needed
-              return null;
-            },
-          ),
+          _buildLocationDropdown(),
         ],
       ),
     );
@@ -769,6 +790,48 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     );
   }
 
+  Widget _buildLocationDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedLocation,
+      decoration: InputDecoration(
+        labelText: 'Location (Optional)',
+        hintText: 'Select your district',
+        prefixIcon: const Icon(Icons.location_on, color: Color(0xFF667eea)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF7FAFC),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      items: _sriLankanDistricts.map((String district) {
+        return DropdownMenuItem<String>(
+          value: district,
+          child: Text(district),
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedLocation = newValue;
+          _locationController.text = newValue ?? '';
+        });
+      },
+      validator: (value) {
+        // Location is optional - no validation needed
+        return null;
+      },
+    );
+  }
+
   Widget _buildIdentityInfoSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1008,7 +1071,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                 ],
               )
             : Text(
-                _profileImageUrl != null ? 'Update Profile' : 'Create Profile',
+                'Create Profile',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -1019,86 +1082,10 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   }
 
   void _showImagePickerOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Select Photo Source',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2d3748),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildImageSourceOption(
-                  icon: Icons.camera_alt,
-                  label: 'Camera',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.camera);
-                  },
-                ),
-                _buildImageSourceOption(
-                  icon: Icons.photo_library,
-                  label: 'Gallery',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.gallery);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
+    // Directly open gallery without showing modal
+    _pickImage(ImageSource.gallery);
   }
 
-  Widget _buildImageSourceOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF667eea).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFF667eea).withOpacity(0.3),
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: const Color(0xFF667eea),
-              size: 40,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF667eea),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -1283,7 +1270,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         'bio': _bioController.text.trim(),
         'phone': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
-        'location': _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : null,
+        'location': _selectedLocation,
         'hourlyRate': int.tryParse(_hourlyRateController.text.trim()) ?? 0,
         'dailyRate': int.tryParse(_dailyRateController.text.trim()) ?? 0,
         'languages': _selectedLanguages,
