@@ -35,6 +35,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isLoading = false;
   bool _isLoadingData = true;
   bool _isLoadingImage = false;
+  bool _isUploadingNic = false;
+  bool _isUploadingDriving = false;
+  bool _isUploadingPolice = false;
   
   List<String> _selectedLanguages = [];
   List<String> _selectedSpecialties = [];
@@ -42,9 +45,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   
   DateTime? _dateOfBirth;
   int? _selectedExperience;
-  Uint8List? _nicDocument;
-  Uint8List? _drivingLicenceDocument;
-  Uint8List? _policeReportDocument;
+  File? _nicDocument;
+  File? _drivingLicenceDocument;
+  File? _policeReportDocument;
   String? _nicDocumentUrl;
   String? _drivingLicenceDocumentUrl;
   String? _policeReportDocumentUrl;
@@ -175,8 +178,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
             _isLoadingData = false;
           });
           
-          // For web platform, download image as base64
+          // For web platform, automatically download image as base64 to bypass CORS
           if (kIsWeb && profileImageUrl != null) {
+            print('🌐 Web platform detected - automatically downloading image as base64');
             _downloadImageAsBase64();
           }
         } else {
@@ -389,48 +393,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ),
           const SizedBox(height: 8),
-          if ((_profileImageUrl != null && _profileImageUrl!.isNotEmpty) || 
-              _profileImage != null || 
-              _profileImageBase64 != null)
-            Column(
-              children: [
-                TextButton(
-                  onPressed: _testProfileImage,
-                  child: const Text(
-                    'Test Image',
-                    style: TextStyle(
-                      color: Color(0xFF667eea),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                if (kIsWeb)
-                  Column(
-                    children: [
-                      TextButton(
-                        onPressed: _downloadImageAsBase64,
-                        child: Text(
-                          _isLoadingImage ? 'Downloading...' : 'Load Image',
-                          style: const TextStyle(
-                            color: Color(0xFF667eea),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _showImageUrl,
-                        child: const Text(
-                          'View Image URL',
-                          style: TextStyle(
-                            color: Color(0xFF667eea),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
         ],
       ),
     );
@@ -838,7 +800,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     required String title,
     required String subtitle,
     required IconData icon,
-    required Uint8List? file,
+    required File? file,
     required String? fileUrl,
     required VoidCallback onTap,
   }) {
@@ -856,50 +818,83 @@ class _EditProfilePageState extends State<EditProfilePage> {
             width: hasFile ? 2 : 1,
           ),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: hasFile 
-                    ? const Color(0xFF667eea) 
-                    : Colors.grey[300],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: hasFile ? Colors.white : Colors.grey[600],
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: hasFile ? const Color(0xFF667eea) : Colors.black,
-                    ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: hasFile 
+                        ? const Color(0xFF667eea) 
+                        : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    hasFile ? 'Document uploaded' : subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: hasFile ? const Color(0xFF667eea) : Colors.grey[600],
-                    ),
+                  child: Icon(
+                    icon,
+                    color: hasFile ? Colors.white : Colors.grey[600],
+                    size: 24,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: hasFile ? const Color(0xFF667eea) : Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _getDocumentStatusText(file, fileUrl),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: hasFile ? const Color(0xFF667eea) : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hasFile && fileUrl != null && fileUrl.isNotEmpty) ...[
+                      IconButton(
+                        onPressed: () => _showDocumentOptions(fileUrl, title),
+                        icon: const Icon(Icons.more_vert),
+                        color: Colors.grey[600],
+                        tooltip: 'Document options',
+                      ),
+                    ],
+                    if (_isDocumentUploading(title)) ...[
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+                        ),
+                      ),
+                    ] else ...[
+                      Icon(
+                        hasFile ? Icons.check_circle : Icons.upload,
+                        color: hasFile ? const Color(0xFF667eea) : Colors.grey[400],
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ),
-            Icon(
-              hasFile ? Icons.check_circle : Icons.upload,
-              color: hasFile ? const Color(0xFF667eea) : Colors.grey[400],
-            ),
+            // Show image preview if document is uploaded
+            if (hasFile) ...[
+              const SizedBox(height: 12),
+              _buildDocumentImagePreview(file, fileUrl),
+            ],
           ],
         ),
       ),
@@ -1051,6 +1046,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _pickDocument(String documentType) async {
     try {
+      print('📄 Starting document picker for: $documentType');
       final XFile? file = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1200,
@@ -1059,28 +1055,154 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
       
       if (file != null) {
-        final bytes = await file.readAsBytes();
+        print('✅ Document selected: ${file.path}');
+        
+        // For web compatibility, upload immediately like profile picture
+        final imageBytes = await file.readAsBytes();
+        
         setState(() {
           switch (documentType) {
             case 'nic':
-              _nicDocument = bytes;
+              _nicDocument = File(file.path);
               break;
             case 'driving':
-              _drivingLicenceDocument = bytes;
+              _drivingLicenceDocument = File(file.path);
               break;
             case 'police':
-              _policeReportDocument = bytes;
+              _policeReportDocument = File(file.path);
               break;
           }
         });
+        
+        // Upload the document immediately for better user experience
+        await _uploadDocumentDirectly(documentType, imageBytes);
+        
+        print('📄 Document uploaded successfully');
+      } else {
+        print('❌ No document selected');
       }
     } catch (e) {
+      print('❌ Error picking document: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error picking document: $e'),
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _uploadDocumentDirectly(String documentType, Uint8List imageBytes) async {
+    try {
+      print('📤 Uploading document directly to Firebase Storage: $documentType');
+      final user = _firebaseService.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Set loading state
+      setState(() {
+        switch (documentType) {
+          case 'nic':
+            _isUploadingNic = true;
+            break;
+          case 'driving':
+            _isUploadingDriving = true;
+            break;
+          case 'police':
+            _isUploadingPolice = true;
+            break;
+        }
+      });
+
+      String documentUrl;
+      switch (documentType) {
+        case 'nic':
+          documentUrl = await _firebaseService.uploadDocument(user.uid, 'nic', imageBytes);
+          setState(() {
+            _nicDocumentUrl = documentUrl;
+            _nicDocument = null; // Clear local file after successful upload
+            _isUploadingNic = false;
+          });
+          break;
+        case 'driving':
+          documentUrl = await _firebaseService.uploadDocument(user.uid, 'driving_licence', imageBytes);
+          setState(() {
+            _drivingLicenceDocumentUrl = documentUrl;
+            _drivingLicenceDocument = null; // Clear local file after successful upload
+            _isUploadingDriving = false;
+          });
+          break;
+        case 'police':
+          documentUrl = await _firebaseService.uploadDocument(user.uid, 'police_report', imageBytes);
+          setState(() {
+            _policeReportDocumentUrl = documentUrl;
+            _policeReportDocument = null; // Clear local file after successful upload
+            _isUploadingPolice = false;
+          });
+          break;
+        default:
+          throw Exception('Unknown document type: $documentType');
+      }
+      
+      print('✅ Document uploaded successfully, URL: $documentUrl');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_getDocumentTypeName(documentType)} updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('❌ Error uploading document: $e');
+      
+      // Clear loading state on error
+      setState(() {
+        switch (documentType) {
+          case 'nic':
+            _isUploadingNic = false;
+            break;
+          case 'driving':
+            _isUploadingDriving = false;
+            break;
+          case 'police':
+            _isUploadingPolice = false;
+            break;
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading document: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _getDocumentTypeName(String documentType) {
+    switch (documentType) {
+      case 'nic':
+        return 'NIC Document';
+      case 'driving':
+        return 'Driving Licence';
+      case 'police':
+        return 'Police Report';
+      default:
+        return 'Document';
+    }
+  }
+
+  bool _isDocumentUploading(String title) {
+    switch (title) {
+      case 'NIC Document':
+        return _isUploadingNic;
+      case 'Driving Licence':
+        return _isUploadingDriving;
+      case 'Police Report':
+        return _isUploadingPolice;
+      default:
+        return false;
     }
   }
 
@@ -1181,6 +1303,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
 
+  Future<bool> _testImageUrl(String url) async {
+    try {
+      final response = await http.head(Uri.parse(url));
+      print('🔍 Image URL test: ${response.statusCode} - $url');
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ Image URL test failed: $e');
+      return false;
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     try {
       print('📸 Starting image picker with source: $source');
@@ -1241,29 +1374,94 @@ class _EditProfilePageState extends State<EditProfilePage> {
       
       print('📥 Downloading image as base64: $_profileImageUrl');
       
-      final response = await http.get(Uri.parse(_profileImageUrl!));
+      // Extract the file path from the URL
+      final uri = Uri.parse(_profileImageUrl!);
+      final pathSegments = uri.pathSegments;
       
-      if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
-        final base64String = base64Encode(bytes);
+      // Find the path after 'o/' in the URL
+      int oIndex = pathSegments.indexOf('o');
+      if (oIndex != -1 && oIndex + 1 < pathSegments.length) {
+        final filePath = pathSegments.sublist(oIndex + 1).join('/');
+        print('📁 Extracted file path: $filePath');
         
-        setState(() {
-          _profileImageBase64 = base64String;
-          _isLoadingImage = false;
-        });
+        // Try to get a fresh download URL that might work better
+        final ref = _firebaseService.getStorageRef().child(filePath);
+        final freshUrl = await ref.getDownloadURL();
+        print('🔄 Got fresh download URL: $freshUrl');
         
-        print('✅ Image downloaded as base64 successfully');
+        // Try using the fresh URL with proper headers
+        final response = await http.get(
+          Uri.parse(freshUrl),
+          headers: {
+            'Accept': 'image/*',
+            'User-Agent': 'Flutter Web App',
+            'Origin': 'http://localhost:${Uri.parse(freshUrl).port}',
+          },
+        ).timeout(const Duration(seconds: 15));
+        
+        if (response.statusCode == 200) {
+          final bytes = response.bodyBytes;
+          final base64String = base64Encode(bytes);
+          
+          setState(() {
+            _profileImageBase64 = base64String;
+            _isLoadingImage = false;
+          });
+          
+          print('✅ Image downloaded as base64 successfully');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image loaded successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          print('❌ Failed to download image: ${response.statusCode}');
+          setState(() {
+            _isLoadingImage = false;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to load image: ${response.statusCode}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       } else {
-        print('❌ Failed to download image: ${response.statusCode}');
+        print('❌ Could not extract file path from URL');
         setState(() {
           _isLoadingImage = false;
         });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not extract file path from URL'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       print('❌ Error downloading image as base64: $e');
       setState(() {
         _isLoadingImage = false;
       });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -1273,6 +1471,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     _profileImageBase64 != null;
     
     print('🖼️ Image display check: hasImage=$hasImage, _profileImageUrl=$_profileImageUrl, _profileImage=$_profileImage, _profileImageBase64=${_profileImageBase64 != null}');
+    
+    // Debug: Check if URL contains profile_images path
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      print('🔍 Profile image URL contains profile_images: ${_profileImageUrl!.contains('profile_images')}');
+      print('🔍 Full URL: $_profileImageUrl');
+    }
     
     return hasImage
         ? ClipOval(
@@ -1322,7 +1526,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
     }
     
-    if (_profileImageBase64 != null) {
+    // Show base64 image only if no network URL is available
+    if (_profileImageBase64 != null && (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
       return ClipOval(
         child: Image.memory(
           base64Decode(_profileImageBase64!),
@@ -1331,6 +1536,47 @@ class _EditProfilePageState extends State<EditProfilePage> {
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             print('❌ Error displaying base64 image: $error');
+            return _buildWebFallbackImage();
+          },
+        ),
+      );
+    }
+    
+    // For web, try to load the network image first
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          _profileImageUrl!,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                ),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Error loading web image: $error');
+            // Show CORS fallback only if there's actually a CORS error
+            if (error.toString().contains('CORS') || 
+                error.toString().contains('XMLHttpRequest') ||
+                error.toString().contains('blocked')) {
+              return _buildWebCorsFallbackImage();
+            }
             return _buildWebFallbackImage();
           },
         ),
@@ -1379,9 +1625,51 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
+  Widget _buildWebCorsFallbackImage() {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFED8936), Color(0xFFDD6B20)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.cloud_off,
+            color: Colors.white,
+            size: 30,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'CORS Issue',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Try Mobile',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMobileProfileImage() {
-    // If we have a local file, show it immediately
-    if (_profileImage != null) {
+    // If we have a local file AND no network URL, show it immediately
+    // This prevents showing old local image when new network image is available
+    if (_profileImage != null && (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+      print('📱 Displaying local profile image: ${_profileImage!.path}');
       return Image.file(
         _profileImage!,
         width: 120,
@@ -1393,16 +1681,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
         },
       );
     }
-    
+
     // If we have a network URL, load it
     if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      print('📱 Attempting to load network image: $_profileImageUrl');
+      print('📱 URL contains profile_images: ${_profileImageUrl!.contains('profile_images')}');
+      
       return Image.network(
         _profileImageUrl!,
         width: 120,
         height: 120,
         fit: BoxFit.cover,
         loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
+          if (loadingProgress == null) {
+            print('✅ Network image loaded successfully');
+            return child;
+          }
+          print('⏳ Loading network image: ${loadingProgress.cumulativeBytesLoaded}/${loadingProgress.expectedTotalBytes}');
           return Container(
             width: 120,
             height: 120,
@@ -1424,12 +1719,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
           print('❌ Error loading profile image: $error');
           print('❌ Image URL: $_profileImageUrl');
           print('❌ Stack trace: $stackTrace');
+          print('❌ URL contains profile_images: ${_profileImageUrl!.contains('profile_images')}');
+          
+          // Check if it's a ClientException (network issue)
+          if (error.toString().contains('ClientException')) {
+            print('🌐 ClientException detected - trying alternative approach');
+            return _buildNetworkErrorImage();
+          }
+          
           return _buildMobileFallbackImage();
         },
       );
     }
-    
+
     // Fallback if no image is available
+    print('📱 No image available, showing fallback');
     return _buildMobileFallbackImage();
   }
 
@@ -1445,6 +1749,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
         Icons.photo_library,
         color: Colors.white,
         size: 30,
+      ),
+    );
+  }
+
+  Widget _buildNetworkErrorImage() {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE53E3E), Color(0xFFC53030)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.wifi_off,
+            color: Colors.white,
+            size: 30,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Network Error',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1472,6 +1808,90 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error testing image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _forceRefreshImage() async {
+    if (_profileImageUrl == null) return;
+    
+    try {
+      print('🔄 Force refreshing profile image');
+      setState(() {
+        // Force a rebuild by temporarily clearing and restoring the URL
+        final tempUrl = _profileImageUrl;
+        _profileImageUrl = null;
+        Future.delayed(const Duration(milliseconds: 100), () {
+          setState(() {
+            _profileImageUrl = tempUrl;
+          });
+        });
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image refreshed'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error refreshing image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error refreshing image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _tryAlternativeImageLoad() async {
+    if (_profileImageUrl == null) return;
+    
+    try {
+      print('🔄 Trying alternative image loading method');
+      
+      // Try to extract the file path from the URL and load it directly from Firebase Storage
+      final uri = Uri.parse(_profileImageUrl!);
+      final pathSegments = uri.pathSegments;
+      
+      // Find the path after 'o/' in the URL
+      int oIndex = pathSegments.indexOf('o');
+      if (oIndex != -1 && oIndex + 1 < pathSegments.length) {
+        final filePath = pathSegments.sublist(oIndex + 1).join('/');
+        print('📁 Extracted file path: $filePath');
+        
+        // Try to get the download URL directly from Firebase Storage
+        final newUrl = await _firebaseService.getDirectDownloadUrl(filePath);
+        if (newUrl != null) {
+          print('✅ Got new download URL: $newUrl');
+          setState(() {
+            _profileImageUrl = newUrl;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image loaded with alternative method'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error with alternative image loading: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Alternative loading failed: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -1518,6 +1938,49 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
+  void _showCorsInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('CORS Issue Explanation'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Why can\'t I see my profile image?',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This is a CORS (Cross-Origin Resource Sharing) issue that occurs when running Flutter web apps locally.',
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Solutions:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text('1. Use the mobile app version'),
+            const Text('2. Deploy to a web server'),
+            const Text('3. Use Chrome with disabled security'),
+            const SizedBox(height: 12),
+            const Text(
+              'The image is uploaded successfully - this is just a display issue in the web browser.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _uploadImageDirectly(Uint8List imageBytes) async {
     try {
       print('📸 Uploading image directly to Firebase Storage');
@@ -1531,7 +1994,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       setState(() {
         _profileImageUrl = imageUrl;
         _isLoadingImage = false;
-        // Keep _profileImage for immediate display, it will be cleared on next app restart
+        // Clear local image so the new network image can be displayed
+        _profileImage = null;
+        _profileImageBase64 = null;
       });
       
       print('✅ Image uploaded successfully, URL: $imageUrl');
@@ -1620,6 +2085,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final imageBytes = await _profileImage!.readAsBytes();
         imageUrl = await _firebaseService.uploadProfileImage(user.uid, imageBytes);
         print('✅ Profile image uploaded successfully');
+        
+        // Clear local image after successful upload
+        setState(() {
+          _profileImage = null;
+          _profileImageBase64 = null;
+        });
       }
 
       // Upload identity documents if new ones were selected (all optional)
@@ -1628,30 +2099,72 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String? policeReportDocumentUrl = _policeReportDocumentUrl;
 
       if (_nicDocument != null) {
-        print('📄 Uploading NIC document');
-        nicDocumentUrl = await _firebaseService.uploadProfileImage(
-          '${user.uid}_nic_${DateTime.now().millisecondsSinceEpoch}', 
-          _nicDocument!
-        );
-        print('✅ NIC document uploaded successfully');
+        try {
+          print('📄 Uploading/updating NIC document');
+          final nicBytes = await _nicDocument!.readAsBytes();
+          nicDocumentUrl = await _firebaseService.uploadDocument(user.uid, 'nic', nicBytes);
+          print('✅ NIC document uploaded/updated successfully');
+          
+          // Update state with uploaded URL and clear local document
+          setState(() {
+            _nicDocumentUrl = nicDocumentUrl;
+            _nicDocument = null;
+          });
+        } catch (e) {
+          print('❌ Error uploading NIC document: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Warning: Could not upload NIC document: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
 
       if (_drivingLicenceDocument != null) {
-        print('🚗 Uploading driving licence document');
-        drivingLicenceDocumentUrl = await _firebaseService.uploadProfileImage(
-          '${user.uid}_driving_${DateTime.now().millisecondsSinceEpoch}', 
-          _drivingLicenceDocument!
-        );
-        print('✅ Driving licence document uploaded successfully');
+        try {
+          print('🚗 Uploading/updating driving licence document');
+          final drivingBytes = await _drivingLicenceDocument!.readAsBytes();
+          drivingLicenceDocumentUrl = await _firebaseService.uploadDocument(user.uid, 'driving_licence', drivingBytes);
+          print('✅ Driving licence document uploaded/updated successfully');
+          
+          // Update state with uploaded URL and clear local document
+          setState(() {
+            _drivingLicenceDocumentUrl = drivingLicenceDocumentUrl;
+            _drivingLicenceDocument = null;
+          });
+        } catch (e) {
+          print('❌ Error uploading driving licence document: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Warning: Could not upload driving licence document: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
 
       if (_policeReportDocument != null) {
-        print('🛡️ Uploading police report document');
-        policeReportDocumentUrl = await _firebaseService.uploadProfileImage(
-          '${user.uid}_police_${DateTime.now().millisecondsSinceEpoch}', 
-          _policeReportDocument!
-        );
-        print('✅ Police report document uploaded successfully');
+        try {
+          print('🛡️ Uploading/updating police report document');
+          final policeBytes = await _policeReportDocument!.readAsBytes();
+          policeReportDocumentUrl = await _firebaseService.uploadDocument(user.uid, 'police_report', policeBytes);
+          print('✅ Police report document uploaded/updated successfully');
+          
+          // Update state with uploaded URL and clear local document
+          setState(() {
+            _policeReportDocumentUrl = policeReportDocumentUrl;
+            _policeReportDocument = null;
+          });
+        } catch (e) {
+          print('❌ Error uploading police report document: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Warning: Could not upload police report document: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
 
       // Calculate age from date of birth
@@ -1716,6 +2229,271 @@ class _EditProfilePageState extends State<EditProfilePage> {
         });
       }
     }
+  }
+
+  Widget _buildDocumentImagePreview(File? file, String? fileUrl) {
+    return Container(
+      height: 120,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: _buildDocumentImageWidget(file, fileUrl),
+      ),
+    );
+  }
+
+  Widget _buildDocumentImageWidget(File? file, String? fileUrl) {
+    print('🖼️ Building document image widget: file=${file?.path}, fileUrl=$fileUrl');
+    
+    // If we have a local file AND no network URL, show it immediately
+    // Note: Image.file is not supported on web, so we skip local file display on web
+    if (file != null && (fileUrl == null || fileUrl.isEmpty) && !kIsWeb) {
+      print('📱 Displaying local document image: ${file.path}');
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading local document image: $error');
+          return _buildDocumentFallbackImage();
+        },
+      );
+    }
+
+    // If we have a network URL, load it
+    if (fileUrl != null && fileUrl.isNotEmpty) {
+      print('🌐 Loading network document image: $fileUrl');
+      return Image.network(
+        fileUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            print('✅ Network document image loaded successfully');
+            return child;
+          }
+          print('⏳ Loading network document image: ${loadingProgress.cumulativeBytesLoaded}/${loadingProgress.expectedTotalBytes}');
+          return Container(
+            color: Colors.grey[100],
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading network document image: $error');
+          return _buildDocumentFallbackImage();
+        },
+      );
+    }
+
+    print('📄 No document image available, showing fallback');
+    return _buildDocumentFallbackImage();
+  }
+
+  Widget _buildDocumentFallbackImage() {
+    return Container(
+      color: Colors.grey[100],
+      child: const Center(
+        child: Icon(
+          Icons.image,
+          color: Colors.grey,
+          size: 40,
+        ),
+      ),
+    );
+  }
+
+  String _getDocumentStatusText(File? file, String? fileUrl) {
+    if (file != null) {
+      return 'Uploading document...';
+    } else if (fileUrl != null && fileUrl.isNotEmpty) {
+      return 'Document uploaded successfully - tap to update';
+    } else {
+      return 'Tap to upload document';
+    }
+  }
+
+  void _showDocumentOptions(String fileUrl, String documentTitle) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$documentTitle Options',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2d3748),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.refresh, color: Color(0xFF667eea)),
+              title: const Text('Update Document'),
+              subtitle: const Text('Replace with a new image'),
+              onTap: () {
+                Navigator.pop(context);
+                _updateDocument(fileUrl, documentTitle);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.visibility, color: Color(0xFF48bb78)),
+              title: const Text('View Document'),
+              subtitle: const Text('Open in browser'),
+              onTap: () {
+                Navigator.pop(context);
+                _viewDocument(fileUrl);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('Remove Document'),
+              subtitle: const Text('Delete this document'),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmRemoveDocument(fileUrl, documentTitle);
+              },
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _updateDocument(String fileUrl, String documentTitle) {
+    // Determine document type based on URL
+    String documentType = 'nic';
+    if (fileUrl == _drivingLicenceDocumentUrl) {
+      documentType = 'driving';
+    } else if (fileUrl == _policeReportDocumentUrl) {
+      documentType = 'police';
+    }
+    
+    _pickDocument(documentType);
+  }
+
+  void _viewDocument(String fileUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Document Preview'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  fileUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[100],
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Document URL:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              fileUrl,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemoveDocument(String fileUrl, String documentTitle) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Document'),
+        content: Text('Are you sure you want to remove your $documentTitle? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _clearDocument(fileUrl);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _clearDocument(String? fileUrl) {
+    if (fileUrl == null) return;
+    
+    // Determine which document to clear based on the URL
+    if (fileUrl == _nicDocumentUrl) {
+      setState(() {
+        _nicDocumentUrl = null;
+        _nicDocument = null;
+      });
+    } else if (fileUrl == _drivingLicenceDocumentUrl) {
+      setState(() {
+        _drivingLicenceDocumentUrl = null;
+        _drivingLicenceDocument = null;
+      });
+    } else if (fileUrl == _policeReportDocumentUrl) {
+      setState(() {
+        _policeReportDocumentUrl = null;
+        _policeReportDocument = null;
+      });
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Document removed. Save profile to apply changes.'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 }
 

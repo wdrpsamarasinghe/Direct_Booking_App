@@ -501,48 +501,502 @@ class _TouristTripsState extends State<TouristTrips> {
 
   Widget _buildErrorState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 80,
-            color: Colors.red[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Error Loading Trips',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.red[600],
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.red[200]!, width: 2),
+              ),
+              child: Icon(
+                Icons.cloud_off_outlined,
+                size: 60,
+                color: Colors.red[400],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              _errorMessage ?? 'Something went wrong',
+            const SizedBox(height: 24),
+            Text(
+              'Connection Issue',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[600],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'We\'re having trouble loading your trips. This might be a temporary network issue.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey[600],
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please check your internet connection and try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[500],
                 fontSize: 14,
               ),
             ),
+            const SizedBox(height: 32),
+            
+            // Action buttons
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _loadData,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try Again'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF667eea),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Show troubleshooting tips
+                      _showTroubleshootingTips();
+                    },
+                    icon: const Icon(Icons.help_outline),
+                    label: const Text('Troubleshooting Tips'),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF667eea)),
+                      foregroundColor: const Color(0xFF667eea),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Technical details (collapsible)
+            ExpansionTile(
+              title: Text(
+                'Technical Details',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Text(
+                    _errorMessage ?? 'No error details available',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTroubleshootingTips() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.help_outline, color: const Color(0xFF667eea)),
+            const SizedBox(width: 8),
+            const Text('Troubleshooting Tips'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTipItem(
+                Icons.wifi,
+                'Check Internet Connection',
+                'Make sure you have a stable internet connection. Try switching between WiFi and mobile data.',
+              ),
+              const SizedBox(height: 16),
+              _buildTipItem(
+                Icons.refresh,
+                'Restart the App',
+                'Close the app completely and reopen it. This can resolve temporary connection issues.',
+              ),
+              const SizedBox(height: 16),
+              _buildTipItem(
+                Icons.update,
+                'Update the App',
+                'Make sure you\'re using the latest version of the app. Updates often include bug fixes.',
+              ),
+              const SizedBox(height: 16),
+              _buildTipItem(
+                Icons.support_agent,
+                'Contact Support',
+                'If the problem persists, contact our support team for assistance.',
+              ),
+              const SizedBox(height: 16),
+              _buildTipItem(
+                Icons.bug_report,
+                'Run Connection Test',
+                'Test your connection to our servers to identify specific issues.',
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _runConnectionTest();
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF667eea)),
+              foregroundColor: const Color(0xFF667eea),
+            ),
+            child: const Text('Test Connection'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _loadData();
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF667eea),
               foregroundColor: Colors.white,
             ),
+            child: const Text('Try Again'),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildTipItem(IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF667eea).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: const Color(0xFF667eea),
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2d3748),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _runConnectionTest() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Testing connection...',
+              style: TextStyle(
+                color: Color(0xFF667eea),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      print('🔍 [TOURIST_TRIPS] Running connection test...');
+      final testResults = await _firebaseService.testFirebaseConnection();
+      print('✅ [TOURIST_TRIPS] Connection test completed');
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show results
+      if (mounted) {
+        _showConnectionTestResults(testResults);
+      }
+    } catch (e) {
+      print('❌ [TOURIST_TRIPS] Connection test failed: $e');
+      
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connection test failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showConnectionTestResults(Map<String, dynamic> results) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              results['errors'].isEmpty ? Icons.check_circle : Icons.warning,
+              color: results['errors'].isEmpty ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(width: 8),
+            const Text('Connection Test Results'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTestResultItem(
+                'Authentication',
+                results['auth'] ?? false,
+                'User login status',
+              ),
+              const SizedBox(height: 12),
+              _buildTestResultItem(
+                'Firestore Database',
+                results['firestore'] ?? false,
+                'Database connection',
+              ),
+              const SizedBox(height: 12),
+              _buildTestResultItem(
+                'File Storage',
+                results['storage'] ?? false,
+                'File upload/download',
+              ),
+              const SizedBox(height: 12),
+              _buildTestResultItem(
+                'Trips Collection',
+                results['trips_collection'] ?? false,
+                'Trips data access',
+              ),
+              
+              if (results['errors'].isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  'Issues Found:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...results['errors'].map<Widget>((error) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '• $error',
+                    style: TextStyle(
+                      color: Colors.red[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                )).toList(),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (results['errors'].isNotEmpty)
+            OutlinedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _resetConnection();
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.orange),
+                foregroundColor: Colors.orange,
+              ),
+              child: const Text('Reset Connection'),
+            ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _loadData();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667eea),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Try Loading Trips'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTestResultItem(String title, bool passed, String description) {
+    return Row(
+      children: [
+        Icon(
+          passed ? Icons.check_circle : Icons.error,
+          color: passed ? Colors.green : Colors.red,
+          size: 20,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                description,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _resetConnection() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Resetting connection...',
+              style: TextStyle(
+                color: Color(0xFF667eea),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      print('🔄 [TOURIST_TRIPS] Resetting Firebase connection...');
+      await _firebaseService.resetFirebaseConnection();
+      print('✅ [TOURIST_TRIPS] Connection reset completed');
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connection reset successfully. Try loading trips again.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ [TOURIST_TRIPS] Connection reset failed: $e');
+      
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connection reset failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showPublishTripDialog() {

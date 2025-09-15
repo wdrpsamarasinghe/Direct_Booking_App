@@ -8,7 +8,17 @@ import 'package:flutter/material.dart';
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  late final FirebaseStorage _storage;
+  
+  FirebaseService() {
+    try {
+      _storage = FirebaseStorage.instance;
+      print('✅ Firebase Storage initialized successfully');
+    } catch (e) {
+      print('❌ Error initializing Firebase Storage: $e');
+      rethrow;
+    }
+  }
 
   // Authentication methods
   Future<UserCredential?> signUpWithEmailAndPassword(
@@ -84,6 +94,158 @@ class FirebaseService {
   User? getCurrentUser() => _auth.currentUser;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // Expose Firestore instance for direct access
+  FirebaseFirestore get firestore => _firestore;
+
+  // Admin Dashboard Data Method
+  Future<Map<String, dynamic>> getAdminDashboardData() async {
+    try {
+      print('📊 Fetching admin dashboard data...');
+      
+      // Get user counts
+      final QuerySnapshot usersSnapshot = await _firestore.collection('users').get();
+      Map<String, int> userCounts = {
+        'total': usersSnapshot.docs.length,
+        'guides': 0,
+        'tourists': 0,
+        'admins': 0,
+      };
+      
+      for (var doc in usersSnapshot.docs) {
+        final userData = doc.data() as Map<String, dynamic>;
+        final role = (userData['role'] ?? '').toString().toLowerCase();
+        
+        switch (role) {
+          case 'guide':
+            userCounts['guides'] = userCounts['guides']! + 1;
+            break;
+          case 'tourist':
+            userCounts['tourists'] = userCounts['tourists']! + 1;
+            break;
+          case 'admin':
+            userCounts['admins'] = userCounts['admins']! + 1;
+            break;
+        }
+      }
+      
+      // Get trip counts
+      final QuerySnapshot tripsSnapshot = await _firestore.collection('trips').get();
+      Map<String, int> tripCounts = {
+        'total': tripsSnapshot.docs.length,
+        'active': 0,
+        'started': 0,
+        'completed': 0,
+        'cancelled': 0,
+      };
+      
+      for (var doc in tripsSnapshot.docs) {
+        final tripData = doc.data() as Map<String, dynamic>;
+        final status = (tripData['status'] ?? '').toString().toLowerCase();
+        
+        switch (status) {
+          case 'active':
+            tripCounts['active'] = tripCounts['active']! + 1;
+            break;
+          case 'started':
+            tripCounts['started'] = tripCounts['started']! + 1;
+            break;
+          case 'completed':
+            tripCounts['completed'] = tripCounts['completed']! + 1;
+            break;
+          case 'cancelled':
+            tripCounts['cancelled'] = tripCounts['cancelled']! + 1;
+            break;
+        }
+      }
+      
+      // Get application counts
+      final QuerySnapshot applicationsSnapshot = await _firestore.collection('trip_applications').get();
+      Map<String, int> applicationCounts = {
+        'total': applicationsSnapshot.docs.length,
+        'pending': 0,
+        'accepted': 0,
+        'rejected': 0,
+        'completed': 0,
+      };
+      
+      for (var doc in applicationsSnapshot.docs) {
+        final appData = doc.data() as Map<String, dynamic>;
+        final status = (appData['status'] ?? '').toString().toLowerCase();
+        
+        switch (status) {
+          case 'pending':
+            applicationCounts['pending'] = applicationCounts['pending']! + 1;
+            break;
+          case 'accepted':
+            applicationCounts['accepted'] = applicationCounts['accepted']! + 1;
+            break;
+          case 'rejected':
+            applicationCounts['rejected'] = applicationCounts['rejected']! + 1;
+            break;
+          case 'completed':
+            applicationCounts['completed'] = applicationCounts['completed']! + 1;
+            break;
+        }
+      }
+      
+      // Get recent users (last 5)
+      List<Map<String, dynamic>> recentUsers = [];
+      for (var doc in usersSnapshot.docs.take(5)) {
+        final userData = doc.data() as Map<String, dynamic>;
+        recentUsers.add({
+          'id': doc.id,
+          'name': userData['name'] ?? 'Unknown',
+          'email': userData['email'] ?? 'No email',
+          'role': userData['role'] ?? 'user',
+          'createdAt': userData['createdAt'],
+        });
+      }
+      
+      // Get recent applications (last 5)
+      List<Map<String, dynamic>> recentApplications = [];
+      for (var doc in applicationsSnapshot.docs.take(5)) {
+        final appData = doc.data() as Map<String, dynamic>;
+        recentApplications.add({
+          'id': doc.id,
+          'guideName': appData['guideName'] ?? 'Unknown Guide',
+          'tripTitle': appData['tripTitle'] ?? 'Unknown Trip',
+          'status': appData['status'] ?? 'pending',
+          'appliedAt': appData['appliedAt'],
+        });
+      }
+      
+      // Get recent trips (last 5)
+      List<Map<String, dynamic>> recentTrips = [];
+      for (var doc in tripsSnapshot.docs.take(5)) {
+        final tripData = doc.data() as Map<String, dynamic>;
+        recentTrips.add({
+          'id': doc.id,
+          'touristName': tripData['touristName'] ?? 'Unknown Tourist',
+          'description': tripData['description'] ?? 'Unknown Trip',
+          'status': tripData['status'] ?? 'active',
+          'createdAt': tripData['createdAt'],
+        });
+      }
+      
+      print('✅ Admin dashboard data fetched successfully');
+      print('📊 Users: ${userCounts['total']} total (${userCounts['guides']} guides, ${userCounts['tourists']} tourists, ${userCounts['admins']} admins)');
+      print('📊 Trips: ${tripCounts['total']} total (${tripCounts['active']} active, ${tripCounts['started']} started, ${tripCounts['completed']} completed)');
+      print('📊 Applications: ${applicationCounts['total']} total (${applicationCounts['pending']} pending, ${applicationCounts['accepted']} accepted)');
+      
+      return {
+        'userCounts': userCounts,
+        'tripCounts': tripCounts,
+        'applicationCounts': applicationCounts,
+        'recentUsers': recentUsers,
+        'recentApplications': recentApplications,
+        'recentTrips': recentTrips,
+      };
+    } catch (e) {
+      print('❌ Error fetching admin dashboard data: $e');
+      rethrow;
+    }
+  }
 
   // Firestore methods
   Future<void> addUserData(String userId, Map<String, dynamic> userData) async {
@@ -236,13 +398,23 @@ class FirebaseService {
   Future<String> uploadFile(String path, Uint8List fileBytes) async {
     try {
       print('📤 Uploading file to path: $path');
+      print('📤 File size: ${fileBytes.length} bytes');
+      
       final ref = _storage.ref().child(path);
-      await ref.putData(fileBytes);
+      print('📤 Storage reference created: ${ref.fullPath}');
+      
+      final uploadTask = await ref.putData(fileBytes);
+      print('📤 Upload task completed: ${uploadTask.state}');
+      
       final downloadUrl = await ref.getDownloadURL();
       print('✅ File uploaded successfully, URL: $downloadUrl');
       return downloadUrl;
     } catch (e) {
       print('❌ Error uploading file: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Error details: ${e.toString()}');
+      print('❌ Path: $path');
+      print('❌ File size: ${fileBytes.length} bytes');
       rethrow;
     }
   }
@@ -274,16 +446,90 @@ class FirebaseService {
     }
   }
 
+  Future<String> uploadDocument(String userId, String documentType, Uint8List imageBytes) async {
+    try {
+      // Use conservative naming to avoid Firebase Storage issues
+      String sanitizedType;
+      String directoryName;
+      
+      switch (documentType) {
+        case 'nic':
+          sanitizedType = 'nic';
+          directoryName = 'nic_documents';
+          break;
+        case 'driving_licence':
+          sanitizedType = 'driving';
+          directoryName = 'driving_documents';
+          break;
+        case 'police_report':
+          sanitizedType = 'police';
+          directoryName = 'police_documents';
+          break;
+        default:
+          sanitizedType = documentType.replaceAll('_', '');
+          directoryName = '${sanitizedType}_documents';
+      }
+      
+      final String fileName = '${sanitizedType}_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final String path = '$directoryName/$fileName';
+      
+      print('📄 Uploading $documentType document: $fileName');
+      print('📄 Document size: ${imageBytes.length} bytes');
+      print('📄 Sanitized type: $sanitizedType');
+      print('📄 Directory: $directoryName');
+      print('📄 Full path: $path');
+      
+      // Test storage connectivity first
+      final connectivityTest = await testStorageConnectivity();
+      if (!connectivityTest) {
+        throw Exception('Firebase Storage connectivity test failed');
+      }
+      
+      return await uploadFile(path, imageBytes);
+    } catch (e) {
+      print('❌ Error uploading $documentType document: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Error details: ${e.toString()}');
+      
+      // Try fallback approach with simpler naming
+      if (e.toString().contains('_Namespace') || e.toString().contains('Unsupported operation')) {
+        print('🔄 Trying fallback approach with simpler naming...');
+        try {
+          final String fallbackFileName = 'doc_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final String fallbackPath = 'documents/$fallbackFileName';
+          print('📄 Fallback path: $fallbackPath');
+          return await uploadFile(fallbackPath, imageBytes);
+        } catch (fallbackError) {
+          print('❌ Fallback approach also failed: $fallbackError');
+          rethrow;
+        }
+      }
+      
+      rethrow;
+    }
+  }
+
   Future<bool> testStorageConnectivity() async {
     try {
       print('🔍 Testing Firebase Storage connectivity...');
+      print('🔍 Storage instance: $_storage');
+      print('🔍 Storage app: ${_storage.app.name}');
+      
       final ref = _storage.ref().child('test_connectivity.txt');
+      print('🔍 Test reference created: ${ref.fullPath}');
+      
       await ref.putString('test');
+      print('🔍 Test file uploaded successfully');
+      
       await ref.delete();
+      print('🔍 Test file deleted successfully');
+      
       print('✅ Firebase Storage connectivity test passed');
       return true;
     } catch (e) {
       print('❌ Firebase Storage connectivity test failed: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Error details: ${e.toString()}');
       return false;
     }
   }
@@ -291,12 +537,76 @@ class FirebaseService {
   Future<bool> testImageUrl(String imageUrl) async {
     try {
       print('🔍 Testing image URL: $imageUrl');
-      final response = await http.get(Uri.parse(imageUrl));
-      print('📡 Image URL test response: ${response.statusCode}');
-      return response.statusCode == 200;
+      
+      // Add headers to handle CORS and other potential issues
+      final response = await http.get(
+        Uri.parse(imageUrl),
+        headers: {
+          'Accept': 'image/*',
+          'User-Agent': 'Flutter App',
+        },
+      ).timeout(const Duration(seconds: 10));
+      
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response headers: ${response.headers}');
+      
+      if (response.statusCode == 200) {
+        print('✅ Image URL is accessible');
+        return true;
+      } else {
+        print('❌ Image URL returned status: ${response.statusCode}');
+        return false;
+      }
     } catch (e) {
       print('❌ Image URL test failed: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      
+      // Check if it's a specific network error
+      if (e.toString().contains('ClientException')) {
+        print('🌐 This appears to be a network connectivity issue');
+        print('💡 Possible causes:');
+        print('   - Network connectivity problems');
+        print('   - CORS policy restrictions');
+        print('   - Firebase Storage rules blocking access');
+        print('   - Firewall or proxy blocking the request');
+      }
+      
       return false;
+    }
+  }
+
+  Future<String?> getDirectDownloadUrl(String filePath) async {
+    try {
+      print('📁 Getting direct download URL for path: $filePath');
+      final ref = _storage.ref().child(filePath);
+      final downloadUrl = await ref.getDownloadURL();
+      print('✅ Direct download URL: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      print('❌ Error getting direct download URL: $e');
+      return null;
+    }
+  }
+
+  Reference getStorageRef() {
+    return _storage.ref();
+  }
+
+  Future<String?> getSignedDownloadUrl(String filePath) async {
+    try {
+      print('📁 Getting signed download URL for path: $filePath');
+      final ref = _storage.ref().child(filePath);
+      
+      // Try to get a signed URL that might bypass CORS
+      final downloadUrl = await ref.getDownloadURL();
+      
+      // Add a timestamp to make it unique and potentially bypass cache
+      final signedUrl = '$downloadUrl&t=${DateTime.now().millisecondsSinceEpoch}';
+      print('✅ Signed download URL: $signedUrl');
+      return signedUrl;
+    } catch (e) {
+      print('❌ Error getting signed download URL: $e');
+      return null;
     }
   }
 
@@ -416,39 +726,167 @@ class FirebaseService {
   }
 
   Future<List<Map<String, dynamic>>> getPublishedTrips() async {
+    const int maxRetries = 3;
+    int retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        print('🔄 [FIREBASE_SERVICE] Attempting to get published trips (attempt ${retryCount + 1}/$maxRetries)');
+        
+        // Check if user is authenticated
+        if (_auth.currentUser?.uid == null) {
+          print('❌ [FIREBASE_SERVICE] No authenticated user found');
+          throw Exception('User not authenticated');
+        }
+        
+        print('👤 [FIREBASE_SERVICE] Current user ID: ${_auth.currentUser!.uid}');
+        
+        // Try to get trips with a timeout
+        final QuerySnapshot snapshot = await _firestore
+            .collection('trips')
+            .where('touristId', isEqualTo: _auth.currentUser!.uid)
+            .get()
+            .timeout(const Duration(seconds: 30));
+
+        print('✅ [FIREBASE_SERVICE] Successfully fetched ${snapshot.docs.length} documents from trips collection');
+
+        List<Map<String, dynamic>> trips = [];
+        
+        for (var doc in snapshot.docs) {
+          try {
+            Map<String, dynamic> tripData = doc.data() as Map<String, dynamic>;
+            tripData['id'] = doc.id;
+            
+            // Skip cancelled trips
+            if (tripData['status'] == 'cancelled') {
+              continue;
+            }
+            
+            // Safely convert Firestore Timestamps to DateTime
+            if (tripData['createdAt'] != null) {
+              try {
+                tripData['createdAt'] = (tripData['createdAt'] as Timestamp).toDate();
+              } catch (e) {
+                print('⚠️ [FIREBASE_SERVICE] Error converting createdAt timestamp: $e');
+                tripData['createdAt'] = DateTime.now();
+              }
+            }
+            if (tripData['updatedAt'] != null) {
+              try {
+                tripData['updatedAt'] = (tripData['updatedAt'] as Timestamp).toDate();
+              } catch (e) {
+                print('⚠️ [FIREBASE_SERVICE] Error converting updatedAt timestamp: $e');
+                tripData['updatedAt'] = DateTime.now();
+              }
+            }
+            if (tripData['startDate'] != null) {
+              try {
+                tripData['startDate'] = (tripData['startDate'] as Timestamp).toDate();
+              } catch (e) {
+                print('⚠️ [FIREBASE_SERVICE] Error converting startDate timestamp: $e');
+                tripData['startDate'] = DateTime.now().add(const Duration(days: 1));
+              }
+            }
+            
+            trips.add(tripData);
+            print('✅ [FIREBASE_SERVICE] Successfully processed trip: ${tripData['id']}');
+          } catch (e) {
+            print('❌ [FIREBASE_SERVICE] Error processing document ${doc.id}: $e');
+            // Continue processing other documents
+            continue;
+          }
+        }
+        
+        // Sort manually by createdAt descending
+        trips.sort((a, b) {
+          DateTime? aDate = a['createdAt'] as DateTime?;
+          DateTime? bDate = b['createdAt'] as DateTime?;
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+          return bDate.compareTo(aDate);
+        });
+        
+        print('🎯 [FIREBASE_SERVICE] Successfully processed ${trips.length} trips');
+        return trips;
+        
+      } catch (e) {
+        retryCount++;
+        print('❌ [FIREBASE_SERVICE] Error getting published trips (attempt $retryCount/$maxRetries): $e');
+        print('📊 [FIREBASE_SERVICE] Error type: ${e.runtimeType}');
+        
+        // Check if it's a specific Firestore error
+        if (e.toString().contains('INTERNAL ASSERTION FAILED') || 
+            e.toString().contains('FIRESTORE') ||
+            e.toString().contains('Unexpected state')) {
+          print('🔧 [FIREBASE_SERVICE] Detected Firestore internal error, attempting recovery...');
+          
+          if (retryCount < maxRetries) {
+            // Wait before retrying
+            await Future.delayed(Duration(seconds: retryCount * 2));
+            continue;
+          } else {
+            // Try fallback approach
+            return await _getPublishedTripsFallback();
+          }
+        } else {
+          // For other errors, don't retry
+          rethrow;
+        }
+      }
+    }
+    
+    // This should never be reached, but just in case
+    throw Exception('Failed to get published trips after $maxRetries attempts');
+  }
+
+  /// Fallback method to get published trips with simpler query
+  Future<List<Map<String, dynamic>>> _getPublishedTripsFallback() async {
     try {
-      // Get trips without ordering to avoid index requirement
+      print('🔄 [FIREBASE_SERVICE] Using fallback method to get published trips');
+      
+      // Get all trips and filter client-side
       final QuerySnapshot snapshot = await _firestore
           .collection('trips')
-          .where('touristId', isEqualTo: _auth.currentUser?.uid)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 20));
 
       List<Map<String, dynamic>> trips = [];
       
       for (var doc in snapshot.docs) {
-        Map<String, dynamic> tripData = doc.data() as Map<String, dynamic>;
-        tripData['id'] = doc.id;
-        
-        // Skip cancelled trips
-        if (tripData['status'] == 'cancelled') {
+        try {
+          Map<String, dynamic> tripData = doc.data() as Map<String, dynamic>;
+          tripData['id'] = doc.id;
+          
+          // Filter for current user's trips
+          if (tripData['touristId'] != _auth.currentUser?.uid) {
+            continue;
+          }
+          
+          // Skip cancelled trips
+          if (tripData['status'] == 'cancelled') {
+            continue;
+          }
+          
+          // Safely convert timestamps
+          if (tripData['createdAt'] != null) {
+            tripData['createdAt'] = (tripData['createdAt'] as Timestamp).toDate();
+          }
+          if (tripData['updatedAt'] != null) {
+            tripData['updatedAt'] = (tripData['updatedAt'] as Timestamp).toDate();
+          }
+          if (tripData['startDate'] != null) {
+            tripData['startDate'] = (tripData['startDate'] as Timestamp).toDate();
+          }
+          
+          trips.add(tripData);
+        } catch (e) {
+          print('❌ [FIREBASE_SERVICE] Error processing document in fallback: $e');
           continue;
         }
-        
-        // Convert Firestore Timestamps to DateTime
-        if (tripData['createdAt'] != null) {
-          tripData['createdAt'] = (tripData['createdAt'] as Timestamp).toDate();
-        }
-        if (tripData['updatedAt'] != null) {
-          tripData['updatedAt'] = (tripData['updatedAt'] as Timestamp).toDate();
-        }
-        if (tripData['startDate'] != null) {
-          tripData['startDate'] = (tripData['startDate'] as Timestamp).toDate();
-        }
-        
-        trips.add(tripData);
       }
       
-      // Sort manually by createdAt descending
+      // Sort manually
       trips.sort((a, b) {
         DateTime? aDate = a['createdAt'] as DateTime?;
         DateTime? bDate = b['createdAt'] as DateTime?;
@@ -458,10 +896,13 @@ class FirebaseService {
         return bDate.compareTo(aDate);
       });
       
+      print('✅ [FIREBASE_SERVICE] Fallback method successful, found ${trips.length} trips');
       return trips;
+      
     } catch (e) {
-      print('Error getting published trips: $e');
-      rethrow;
+      print('❌ [FIREBASE_SERVICE] Fallback method also failed: $e');
+      // Return empty list as last resort
+      return [];
     }
   }
 
@@ -2044,6 +2485,106 @@ class FirebaseService {
         return 1;
       default:
         return 0;
+    }
+  }
+
+  /// Test Firebase connection and diagnose issues
+  Future<Map<String, dynamic>> testFirebaseConnection() async {
+    Map<String, dynamic> results = {
+      'auth': false,
+      'firestore': false,
+      'storage': false,
+      'errors': [],
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    try {
+      print('🔍 [FIREBASE_SERVICE] Starting Firebase connection test...');
+
+      // Test Authentication
+      try {
+        final user = _auth.currentUser;
+        results['auth'] = user != null;
+        print('✅ [FIREBASE_SERVICE] Auth test: ${user != null ? "PASSED" : "FAILED"}');
+        if (user == null) {
+          results['errors'].add('No authenticated user found');
+        }
+      } catch (e) {
+        results['errors'].add('Auth test failed: $e');
+        print('❌ [FIREBASE_SERVICE] Auth test failed: $e');
+      }
+
+      // Test Firestore
+      try {
+        final testDoc = await _firestore
+            .collection('_test')
+            .doc('connection_test')
+            .get()
+            .timeout(const Duration(seconds: 10));
+        results['firestore'] = true;
+        print('✅ [FIREBASE_SERVICE] Firestore test: PASSED');
+      } catch (e) {
+        results['errors'].add('Firestore test failed: $e');
+        print('❌ [FIREBASE_SERVICE] Firestore test failed: $e');
+      }
+
+      // Test Storage
+      try {
+        final testRef = _storage.ref().child('_test/connection_test.txt');
+        await testRef.putString('test').timeout(const Duration(seconds: 10));
+        await testRef.delete();
+        results['storage'] = true;
+        print('✅ [FIREBASE_SERVICE] Storage test: PASSED');
+      } catch (e) {
+        results['errors'].add('Storage test failed: $e');
+        print('❌ [FIREBASE_SERVICE] Storage test failed: $e');
+      }
+
+      // Test specific trips collection
+      try {
+        final tripsSnapshot = await _firestore
+            .collection('trips')
+            .limit(1)
+            .get()
+            .timeout(const Duration(seconds: 10));
+        results['trips_collection'] = true;
+        print('✅ [FIREBASE_SERVICE] Trips collection test: PASSED (${tripsSnapshot.docs.length} docs)');
+      } catch (e) {
+        results['errors'].add('Trips collection test failed: $e');
+        print('❌ [FIREBASE_SERVICE] Trips collection test failed: $e');
+      }
+
+    } catch (e) {
+      results['errors'].add('General connection test failed: $e');
+      print('❌ [FIREBASE_SERVICE] General connection test failed: $e');
+    }
+
+    print('🎯 [FIREBASE_SERVICE] Connection test completed:');
+    print('  Auth: ${results['auth']}');
+    print('  Firestore: ${results['firestore']}');
+    print('  Storage: ${results['storage']}');
+    print('  Errors: ${results['errors'].length}');
+
+    return results;
+  }
+
+  /// Clear Firebase cache and reset connection
+  Future<void> resetFirebaseConnection() async {
+    try {
+      print('🔄 [FIREBASE_SERVICE] Resetting Firebase connection...');
+      
+      // Clear any cached data
+      await _firestore.clearPersistence();
+      print('✅ [FIREBASE_SERVICE] Firestore cache cleared');
+      
+      // Reinitialize storage
+      _storage = FirebaseStorage.instance;
+      print('✅ [FIREBASE_SERVICE] Storage reinitialized');
+      
+      print('🎯 [FIREBASE_SERVICE] Firebase connection reset completed');
+    } catch (e) {
+      print('❌ [FIREBASE_SERVICE] Error resetting Firebase connection: $e');
+      rethrow;
     }
   }
 }

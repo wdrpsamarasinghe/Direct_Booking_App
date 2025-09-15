@@ -3,6 +3,8 @@ import 'services/firebase_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signin_page.dart';
 import 'theme/app_theme.dart';
+import 'admin_dashboard_simple.dart';
+import 'admin_users_page.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({Key? key}) : super(key: key);
@@ -15,9 +17,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
   int _currentIndex = 0;
   
   List<Widget> get _pages => [
-    AdminDashboard(context: context),
-    const UserManagementPage(),
-    const SystemSettingsPage(),
+    AdminDashboardSimple(context: context),
+    const AdminUsersPage(),
     const AdminProfilePage(),
   ];
 
@@ -74,11 +75,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
               label: 'Users',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
-            BottomNavigationBarItem(
               icon: Icon(Icons.admin_panel_settings_outlined),
               activeIcon: Icon(Icons.admin_panel_settings),
               label: 'Profile',
@@ -90,9 +86,44 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 }
 
-class AdminDashboard extends StatelessWidget {
+class AdminDashboard extends StatefulWidget {
   final BuildContext context;
   const AdminDashboard({Key? key, required this.context}) : super(key: key);
+
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  Map<String, dynamic>? _dashboardData;
+  bool _isLoading = true;
+  final FirebaseService _firebaseService = FirebaseService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      
+      final data = await _firebaseService.getAdminDashboardData();
+      
+      setState(() {
+        _dashboardData = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading dashboard data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -238,15 +269,15 @@ class AdminDashboard extends StatelessWidget {
           ),
         ),
         
-        // Notification Icon and Menu
+        // Notification Icon, Refresh Button and Menu
         Row(
           children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
                     color: Colors.black.withOpacity(0.08),
                     blurRadius: 15,
                     offset: const Offset(0, 4),
@@ -257,15 +288,46 @@ class AdminDashboard extends StatelessWidget {
                     blurRadius: 25,
                     offset: const Offset(0, 8),
                     spreadRadius: 0,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // Handle notifications
-            },
-          ),
+              child: IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {
+                  // Handle notifications
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 15,
+                    offset: const Offset(0, 4),
+                    spreadRadius: 0,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 25,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 0,
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: _isLoading 
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                onPressed: _isLoading ? null : _loadDashboardData,
+              ),
             ),
             const SizedBox(width: 8),
             Container(
@@ -327,6 +389,32 @@ class AdminDashboard extends StatelessWidget {
   }
 
   Widget _buildStatsSection() {
+    if (_isLoading) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _buildLoadingCard()),
+              const SizedBox(width: 15),
+              Expanded(child: _buildLoadingCard()),
+            ],
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(child: _buildLoadingCard()),
+              const SizedBox(width: 15),
+              Expanded(child: _buildLoadingCard()),
+            ],
+          ),
+        ],
+      );
+    }
+
+    final userCounts = _dashboardData?['userCounts'] as Map<String, int>? ?? {};
+    final tripCounts = _dashboardData?['tripCounts'] as Map<String, int>? ?? {};
+    final applicationCounts = _dashboardData?['applicationCounts'] as Map<String, int>? ?? {};
+
     return Column(
       children: [
         Row(
@@ -335,9 +423,9 @@ class AdminDashboard extends StatelessWidget {
               child: _buildStatCard(
                 icon: Icons.people,
                 title: 'Total Users',
-                value: '2,847',
+                value: '${userCounts['total'] ?? 0}',
                 color: const Color(0xFF667eea),
-                change: '+12%',
+                change: '${userCounts['guides'] ?? 0} guides',
                 isPositive: true,
               ),
             ),
@@ -346,9 +434,9 @@ class AdminDashboard extends StatelessWidget {
               child: _buildStatCard(
                 icon: Icons.explore,
                 title: 'Active Tours',
-                value: '156',
+                value: '${tripCounts['active'] ?? 0}',
                 color: const Color(0xFF48bb78),
-                change: '+8%',
+                change: '${tripCounts['started'] ?? 0} ongoing',
                 isPositive: true,
               ),
             ),
@@ -360,27 +448,100 @@ class AdminDashboard extends StatelessWidget {
             Expanded(
               child: _buildStatCard(
                 icon: Icons.book_online,
-                title: 'Bookings',
-                value: '1,234',
+                title: 'Applications',
+                value: '${applicationCounts['total'] ?? 0}',
                 color: const Color(0xFFed8936),
-                change: '+15%',
+                change: '${applicationCounts['pending'] ?? 0} pending',
                 isPositive: true,
               ),
             ),
             const SizedBox(width: 15),
             Expanded(
               child: _buildStatCard(
-                icon: Icons.attach_money,
-                title: 'Revenue',
-                value: '\$45,678',
+                icon: Icons.check_circle,
+                title: 'Completed',
+                value: '${tripCounts['completed'] ?? 0}',
                 color: const Color(0xFFe53e3e),
-                change: '+23%',
+                change: '${applicationCounts['completed'] ?? 0} bookings',
                 isPositive: true,
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildLoadingCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.hourglass_empty,
+                  color: Colors.grey,
+                  size: 24,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Loading...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 24,
+            width: 60,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            height: 14,
+            width: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -638,6 +799,84 @@ class AdminDashboard extends StatelessWidget {
   }
 
   Widget _buildRecentActivities() {
+    if (_isLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recent Activities',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2d3748),
+            ),
+          ),
+          const SizedBox(height: 15),
+          _buildLoadingActivityCard(),
+          const SizedBox(height: 12),
+          _buildLoadingActivityCard(),
+          const SizedBox(height: 12),
+          _buildLoadingActivityCard(),
+        ],
+      );
+    }
+
+    final recentUsers = _dashboardData?['recentUsers'] as List<Map<String, dynamic>>? ?? [];
+    final recentApplications = _dashboardData?['recentApplications'] as List<Map<String, dynamic>>? ?? [];
+    final recentTrips = _dashboardData?['recentTrips'] as List<Map<String, dynamic>>? ?? [];
+
+    // Combine and sort all recent activities
+    List<Map<String, dynamic>> allActivities = [];
+    
+    // Add recent users
+    for (var user in recentUsers.take(3)) {
+      allActivities.add({
+        'type': 'user_registration',
+        'icon': Icons.person_add,
+        'title': 'New User Registered',
+        'subtitle': '${user['name'] ?? 'Unknown'} joined as ${user['role'] ?? 'user'}',
+        'time': _formatTimeAgo(user['createdAt'] as DateTime?),
+        'color': const Color(0xFF667eea),
+        'timestamp': user['createdAt'] as DateTime?,
+      });
+    }
+    
+    // Add recent applications
+    for (var app in recentApplications.take(3)) {
+      allActivities.add({
+        'type': 'trip_application',
+        'icon': Icons.book_online,
+        'title': 'New Trip Application',
+        'subtitle': '${app['guideName'] ?? 'Guide'} applied for "${app['tripTitle'] ?? 'Trip'}"',
+        'time': _formatTimeAgo(app['appliedAt'] as DateTime?),
+        'color': const Color(0xFFed8936),
+        'timestamp': app['appliedAt'] as DateTime?,
+      });
+    }
+    
+    // Add recent trips
+    for (var trip in recentTrips.take(3)) {
+      allActivities.add({
+        'type': 'trip_published',
+        'icon': Icons.explore,
+        'title': 'New Trip Published',
+        'subtitle': '${trip['touristName'] ?? 'Tourist'} published "${trip['description'] ?? 'Trip'}"',
+        'time': _formatTimeAgo(trip['createdAt'] as DateTime?),
+        'color': const Color(0xFF48bb78),
+        'timestamp': trip['createdAt'] as DateTime?,
+      });
+    }
+    
+    // Sort by timestamp (most recent first)
+    allActivities.sort((a, b) {
+      DateTime? aTime = a['timestamp'] as DateTime?;
+      DateTime? bTime = b['timestamp'] as DateTime?;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -667,31 +906,132 @@ class AdminDashboard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 15),
-        _buildActivityCard(
-          icon: Icons.person_add,
-          title: 'New User Registered',
-          subtitle: 'John Doe joined as a tourist',
-          time: '2 minutes ago',
-          color: const Color(0xFF667eea),
-        ),
-        const SizedBox(height: 12),
-        _buildActivityCard(
-          icon: Icons.verified_user,
-          title: 'Guide Verified',
-          subtitle: 'Sarah Johnson approved as tour guide',
-          time: '15 minutes ago',
-          color: const Color(0xFF48bb78),
-        ),
-        const SizedBox(height: 12),
-        _buildActivityCard(
-          icon: Icons.book_online,
-          title: 'New Booking',
-          subtitle: 'Mountain Adventure booked by Emma Wilson',
-          time: '1 hour ago',
-          color: const Color(0xFFed8936),
-        ),
+        if (allActivities.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 5),
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Text(
+                'No recent activities',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          )
+        else
+          ...allActivities.take(5).map((activity) => Column(
+            children: [
+              _buildActivityCard(
+                icon: activity['icon'] as IconData,
+                title: activity['title'] as String,
+                subtitle: activity['subtitle'] as String,
+                time: activity['time'] as String,
+                color: activity['color'] as Color,
+              ),
+              const SizedBox(height: 12),
+            ],
+          )).toList(),
       ],
     );
+  }
+
+  Widget _buildLoadingActivityCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: const Icon(
+              Icons.hourglass_empty,
+              color: Colors.grey,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 16,
+                  width: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 14,
+                  width: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  height: 12,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime? dateTime) {
+    if (dateTime == null) return 'Unknown time';
+    
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    } else {
+      return 'Just now';
+    }
   }
 
   Widget _buildActivityCard({
@@ -887,31 +1227,6 @@ class AdminDashboard extends StatelessWidget {
 }
 
 // Placeholder pages for other tabs
-class UserManagementPage extends StatelessWidget {
-  const UserManagementPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('User Management Page - Coming Soon'),
-      ),
-    );
-  }
-}
-
-class SystemSettingsPage extends StatelessWidget {
-  const SystemSettingsPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('System Settings Page - Coming Soon'),
-      ),
-    );
-  }
-}
 
 class AdminProfilePage extends StatelessWidget {
   const AdminProfilePage({Key? key}) : super(key: key);

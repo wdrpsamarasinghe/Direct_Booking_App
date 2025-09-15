@@ -147,14 +147,6 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
               _buildHeader(context),
               const SizedBox(height: 30),
               
-              // Search Bar
-              _buildSearchBar(context),
-              const SizedBox(height: 30),
-              
-              // Popular Tours
-              _buildPopularTours(context),
-              const SizedBox(height: 30),
-              
               // Categories
               _buildCategories(context),
               const SizedBox(height: 30),
@@ -326,255 +318,9 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        _showSearchModal(context);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppTheme.cardShadow,
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search, color: AppTheme.primaryBlue),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Search Sri Lankan destinations...',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlue,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.filter_list, color: Colors.white, size: 20),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildPopularTours(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Popular Tours',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2d3748),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                _showAllTours(context);
-              },
-              child: const Text(
-                'View All',
-                style: TextStyle(
-                  color: Color(0xFF667eea),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 15),
-        SizedBox(
-          height: 280,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildTourCard(
-                title: 'Sigiriya Rock Fortress',
-                location: 'Sigiriya',
-                rating: 4.8,
-                price: 'Rs. 8,500',
-                duration: '4 hours',
-                image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-              ),
-              const SizedBox(width: 16),
-              _buildTourCard(
-                title: 'Ella Nine Arch Bridge',
-                location: 'Ella',
-                rating: 4.9,
-                price: 'Rs. 12,000',
-                duration: '6 hours',
-                image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-              ),
-              const SizedBox(width: 16),
-              _buildTourCard(
-                title: 'Kandy Temple of the Tooth',
-                location: 'Kandy',
-                rating: 4.7,
-                price: 'Rs. 6,500',
-                duration: '3 hours',
-                image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-              ),
-              const SizedBox(width: 16),
-              _buildTourCard(
-                title: 'Mirissa Whale Watching',
-                location: 'Mirissa',
-                rating: 4.6,
-                price: 'Rs. 15,000',
-                duration: '5 hours',
-                image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-              ),
-              const SizedBox(width: 16),
-              _buildTourCard(
-                title: 'Galle Fort Heritage Walk',
-                location: 'Galle',
-                rating: 4.8,
-                price: 'Rs. 7,500',
-                duration: '3 hours',
-                image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildTourCard({
-    required String title,
-    required String location,
-    required double rating,
-    required String price,
-    required String duration,
-    required String image,
-  }) {
-    return Container(
-      width: 250,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tour Image
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              image: DecorationImage(
-                image: NetworkImage(image),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Tour Details
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2d3748),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      location,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      duration,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      price,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF667eea),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildCategories(BuildContext context) {
     return Column(
@@ -845,183 +591,6 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
     );
   }
 
-  void _showSearchModal(BuildContext context) {
-    final List<String> sriLankanDestinations = [
-      'Sigiriya Rock Fortress',
-      'Ella Nine Arch Bridge',
-      'Kandy Temple of the Tooth',
-      'Mirissa Beach',
-      'Galle Fort',
-      'Anuradhapura Ancient City',
-      'Polonnaruwa Archaeological Site',
-      'Yala National Park',
-      'Nuwara Eliya Tea Country',
-      'Trincomalee Beach',
-      'Bentota Beach',
-      'Colombo City',
-      'Dambulla Cave Temple',
-      'Horton Plains National Park',
-      'Adam\'s Peak',
-      'Unawatuna Beach',
-      'Arugam Bay',
-      'Jaffna Fort',
-      'Pinnawala Elephant Orphanage',
-      'Royal Botanical Gardens',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            ),
-            
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Text(
-                    'Search Destinations',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2d3748),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    color: Colors.grey[600],
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: AppTheme.primaryBlue),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search Sri Lankan destinations...',
-                          border: InputBorder.none,
-                          hintStyle: TextStyle(color: Colors.grey[500]),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Popular Destinations
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Text(
-                    'Popular Destinations',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2d3748),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 15),
-            
-            // Destinations List
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: sriLankanDestinations.length,
-                itemBuilder: (context, index) {
-                  final destination = sriLankanDestinations[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF667eea).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Color(0xFF667eea),
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        destination,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF2d3748),
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                        color: Color(0xFF667eea),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        // Handle destination selection
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showNotifications(BuildContext context) {
     final List<Map<String, dynamic>> notifications = [
@@ -1256,7 +825,8 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
     );
   }
 
-  void _showAllTours(BuildContext context) {
+
+  void _showAllToursOld(BuildContext context) {
     final List<Map<String, dynamic>> allTours = [
       {
         'title': 'Sigiriya Rock Fortress',
@@ -1557,238 +1127,137 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
   }
 
   void _showCategoryTours(BuildContext context, String category) {
-    Map<String, List<Map<String, dynamic>>> categoryTours = {
+    Map<String, List<String>> categoryPlaces = {
       'Wildlife': [
-        {
-          'title': 'Yala National Park Safari',
-          'location': 'Yala',
-          'rating': 4.9,
-          'price': 'Rs. 18,000',
-          'duration': '8 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Spot leopards, elephants, and diverse birdlife in their natural habitat',
-        },
-        {
-          'title': 'Udawalawe Elephant Transit Home',
-          'location': 'Udawalawe',
-          'rating': 4.7,
-          'price': 'Rs. 12,000',
-          'duration': '6 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Watch baby elephants being fed and learn about conservation efforts',
-        },
-        {
-          'title': 'Minneriya Elephant Gathering',
-          'location': 'Minneriya',
-          'rating': 4.8,
-          'price': 'Rs. 15,000',
-          'duration': '7 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Witness the largest gathering of Asian elephants in the world',
-        },
-        {
-          'title': 'Sinharaja Rainforest Trek',
-          'location': 'Sinharaja',
-          'rating': 4.6,
-          'price': 'Rs. 10,000',
-          'duration': '5 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Explore the UNESCO World Heritage rainforest with endemic species',
-        },
+        'Yala National Park',
+        'Udawalawe National Park',
+        'Minneriya National Park',
+        'Sinharaja Rainforest',
+        'Wilpattu National Park',
+        'Bundala National Park',
+        'Kumana National Park',
+        'Gal Oya National Park',
+        'Horton Plains National Park',
+        'Pinnawala Elephant Orphanage',
+        'Udawalawe Elephant Transit Home',
+        'Wasgamuwa National Park',
+        'Maduru Oya National Park',
+        'Lunugamvehera National Park',
+        'Angammedilla National Park',
       ],
       'Heritage': [
-        {
-          'title': 'Sigiriya Rock Fortress',
-          'location': 'Sigiriya',
-          'rating': 4.8,
-          'price': 'Rs. 8,500',
-          'duration': '4 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Explore the ancient rock fortress and UNESCO World Heritage site',
-        },
-        {
-          'title': 'Anuradhapura Ancient City',
-          'location': 'Anuradhapura',
-          'rating': 4.7,
-          'price': 'Rs. 9,000',
-          'duration': '5 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Explore the ancient capital with its sacred Bodhi tree and stupas',
-        },
-        {
-          'title': 'Polonnaruwa Archaeological Site',
-          'location': 'Polonnaruwa',
-          'rating': 4.7,
-          'price': 'Rs. 8,000',
-          'duration': '4 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Discover the medieval capital with ancient temples and statues',
-        },
-        {
-          'title': 'Galle Fort Heritage Walk',
-          'location': 'Galle',
-          'rating': 4.8,
-          'price': 'Rs. 7,500',
-          'duration': '3 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Discover the colonial architecture and history of Galle Fort',
-        },
+        'Sigiriya Rock Fortress',
+        'Anuradhapura Ancient City',
+        'Polonnaruwa Archaeological Site',
+        'Galle Fort',
+        'Dambulla Cave Temple',
+        'Kandy Temple of the Tooth',
+        'Mihintale Sacred Mountain',
+        'Abhayagiri Monastery',
+        'Jetavanaramaya Stupa',
+        'Ruwanwelisaya Stupa',
+        'Lankatilaka Temple',
+        'Gadaladeniya Temple',
+        'Embekke Devalaya',
+        'Kataragama Temple',
+        'Nallur Kandaswamy Temple',
+        'Dutch Reformed Church',
+        'St. Mary\'s Cathedral',
+        'Jami Ul-Alfar Mosque',
+        'Gangaramaya Temple',
+        'Kelaniya Raja Maha Viharaya',
       ],
       'Beaches': [
-        {
-          'title': 'Mirissa Beach & Whale Watching',
-          'location': 'Mirissa',
-          'rating': 4.6,
-          'price': 'Rs. 15,000',
-          'duration': '5 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Relax on pristine beaches and spot blue whales and dolphins',
-        },
-        {
-          'title': 'Unawatuna Beach',
-          'location': 'Unawatuna',
-          'rating': 4.5,
-          'price': 'Rs. 6,000',
-          'duration': '4 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Enjoy the crescent-shaped beach with calm waters for swimming',
-        },
-        {
-          'title': 'Bentota Beach & Water Sports',
-          'location': 'Bentota',
-          'rating': 4.4,
-          'price': 'Rs. 12,000',
-          'duration': '6 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Experience water sports and relax on the golden sandy beach',
-        },
-        {
-          'title': 'Arugam Bay Surfing',
-          'location': 'Arugam Bay',
-          'rating': 4.8,
-          'price': 'Rs. 8,000',
-          'duration': '4 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Learn to surf at one of the best surf spots in Sri Lanka',
-        },
+        'Mirissa Beach',
+        'Unawatuna Beach',
+        'Bentota Beach',
+        'Arugam Bay',
+        'Hikkaduwa Beach',
+        'Negombo Beach',
+        'Kalpitiya Beach',
+        'Trincomalee Beach',
+        'Pasikudah Beach',
+        'Nilaveli Beach',
+        'Uppuveli Beach',
+        'Weligama Beach',
+        'Tangalle Beach',
+        'Polhena Beach',
+        'Mount Lavinia Beach',
+        'Beruwala Beach',
+        'Ahungalla Beach',
+        'Koggala Beach',
+        'Dickwella Beach',
+        'Hiriketiya Beach',
       ],
       'Tea Country': [
-        {
-          'title': 'Nuwara Eliya Tea Plantations',
-          'location': 'Nuwara Eliya',
-          'rating': 4.5,
-          'price': 'Rs. 10,000',
-          'duration': '4 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Visit tea plantations and learn about Ceylon tea production',
-        },
-        {
-          'title': 'Ella Nine Arch Bridge',
-          'location': 'Ella',
-          'rating': 4.9,
-          'price': 'Rs. 12,000',
-          'duration': '6 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Walk across the iconic railway bridge surrounded by tea plantations',
-        },
-        {
-          'title': 'Horton Plains & World\'s End',
-          'location': 'Horton Plains',
-          'rating': 4.7,
-          'price': 'Rs. 11,000',
-          'duration': '5 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Hike to World\'s End for breathtaking views of the tea country',
-        },
-        {
-          'title': 'Adam\'s Peak Sunrise Trek',
-          'location': 'Adam\'s Peak',
-          'rating': 4.8,
-          'price': 'Rs. 13,000',
-          'duration': '8 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Climb the sacred mountain for a spectacular sunrise view',
-        },
+        'Nuwara Eliya',
+        'Ella',
+        'Horton Plains',
+        'Adam\'s Peak',
+        'Kandy',
+        'Badulla',
+        'Bandarawela',
+        'Haputale',
+        'Maskeliya',
+        'Hatton',
+        'Dickoya',
+        'Talawakelle',
+        'Nanu Oya',
+        'Pattipola',
+        'Ohiya',
+        'Bambarakanda Falls',
+        'Ravana Falls',
+        'Devon Falls',
+        'St. Clair\'s Falls',
+        'Laxapana Falls',
       ],
       'Local Food': [
-        {
-          'title': 'Colombo Street Food Tour',
-          'location': 'Colombo',
-          'rating': 4.6,
-          'price': 'Rs. 5,000',
-          'duration': '3 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Taste authentic Sri Lankan street food and local delicacies',
-        },
-        {
-          'title': 'Traditional Cooking Class',
-          'location': 'Kandy',
-          'rating': 4.7,
-          'price': 'Rs. 7,500',
-          'duration': '4 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Learn to cook traditional Sri Lankan dishes with local families',
-        },
-        {
-          'title': 'Spice Garden Tour',
-          'location': 'Matale',
-          'rating': 4.5,
-          'price': 'Rs. 6,000',
-          'duration': '3 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Explore spice gardens and learn about medicinal properties',
-        },
-        {
-          'title': 'Seafood Feast in Negombo',
-          'location': 'Negombo',
-          'rating': 4.8,
-          'price': 'Rs. 8,000',
-          'duration': '3 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Enjoy fresh seafood and traditional coastal cuisine',
-        },
+        'Colombo Pettah Market',
+        'Galle Face Green',
+        'Mount Lavinia Beach',
+        'Negombo Fish Market',
+        'Kandy Central Market',
+        'Anuradhapura Market',
+        'Jaffna Market',
+        'Batticaloa Market',
+        'Trincomalee Market',
+        'Galle Market',
+        'Matale Spice Market',
+        'Kurunegala Market',
+        'Ratnapura Gem Market',
+        'Chilaw Fish Market',
+        'Kalutara Market',
+        'Ambalangoda Market',
+        'Bentota Market',
+        'Hikkaduwa Market',
+        'Ella Market',
+        'Nuwara Eliya Market',
       ],
       'Spiritual': [
-        {
-          'title': 'Kandy Temple of the Tooth',
-          'location': 'Kandy',
-          'rating': 4.7,
-          'price': 'Rs. 6,500',
-          'duration': '3 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Visit the sacred Buddhist temple housing the tooth relic of Buddha',
-        },
-        {
-          'title': 'Dambulla Cave Temple',
-          'location': 'Dambulla',
-          'rating': 4.7,
-          'price': 'Rs. 8,000',
-          'duration': '3 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Explore the largest cave temple complex with ancient Buddhist murals',
-        },
-        {
-          'title': 'Kataragama Pilgrimage',
-          'location': 'Kataragama',
-          'rating': 4.6,
-          'price': 'Rs. 9,000',
-          'duration': '5 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Experience the multi-religious pilgrimage site and ancient rituals',
-        },
-        {
-          'title': 'Mihintale Sacred Mountain',
-          'location': 'Mihintale',
-          'rating': 4.8,
-          'price': 'Rs. 7,000',
-          'duration': '4 hours',
-          'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-          'description': 'Climb the sacred mountain where Buddhism was introduced to Sri Lanka',
-        },
+        'Temple of the Sacred Tooth Relic',
+        'Dambulla Cave Temple',
+        'Mihintale',
+        'Anuradhapura Sacred City',
+        'Polonnaruwa Sacred City',
+        'Kataragama Temple',
+        'Nallur Kandaswamy Temple',
+        'Gangaramaya Temple',
+        'Kelaniya Raja Maha Viharaya',
+        'Lankatilaka Temple',
+        'Gadaladeniya Temple',
+        'Embekke Devalaya',
+        'Sri Dalada Maligawa',
+        'Maligawa Temple',
+        'Aluvihare Rock Temple',
+        'Muthiyangana Temple',
+        'Koneswaram Temple',
+        'Thirukoneswaram Temple',
+        'Nagadeepa Temple',
+        'Munneswaram Temple',
       ],
     };
 
-    final tours = categoryTours[category] ?? [];
+    final places = categoryPlaces[category] ?? [];
 
     showModalBottomSheet(
       context: context,
@@ -1806,27 +1275,23 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
         child: Column(
           children: [
             // Handle bar
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Center(
-                child: Container(
+            Container(
+              margin: const EdgeInsets.only(top: 12),
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
               ),
             ),
             
             // Header
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   Text(
-                    '$category Tours',
+                    '$category Places',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -1845,14 +1310,14 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
             
             const SizedBox(height: 20),
             
-            // Tours List
+            // Places List
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: tours.length,
+                itemCount: places.length,
                 itemBuilder: (context, index) {
-                  final tour = tours[index];
-                  return _buildCategoryTourCard(tour);
+                  final place = places[index];
+                  return _buildPlaceItem(place, index + 1);
                 },
               ),
             ),
@@ -1862,143 +1327,57 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
     );
   }
 
-  Widget _buildCategoryTourCard(Map<String, dynamic> tour) {
+  Widget _buildPlaceItem(String place, int index) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Tour Image
+          // Number indicator
           Container(
-            width: 120,
-            height: 120,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-              ),
-              image: DecorationImage(
-                image: NetworkImage(tour['image']),
-                fit: BoxFit.cover,
-              ),
+              color: const Color(0xFF667eea).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 12),
-                        const SizedBox(width: 2),
-                        Text(
-                          tour['rating'].toString(),
+            child: Center(
+              child: Text(
+                index.toString(),
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
+                  fontSize: 14,
                             fontWeight: FontWeight.w600,
+                  color: Color(0xFF667eea),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
           
-          // Tour Details
+          const SizedBox(width: 16),
+          
+          // Place name
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tour['title'],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2d3748),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          tour['location'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          tour['duration'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const Spacer(),
-                      Flexible(
-                        child: Text(
-                          tour['price'],
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF667eea),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    tour['description'],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            child: Text(
+              place,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF2d3748),
               ),
             ),
           ),

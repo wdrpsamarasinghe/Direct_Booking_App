@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'services/firebase_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -26,6 +29,8 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   
   File? _profileImage;
   String? _profileImageUrl;
+  String? _profileImageBase64;
+  bool _isLoadingImage = false;
   final ImagePicker _picker = ImagePicker();
   final FirebaseService _firebaseService = FirebaseService();
   
@@ -35,6 +40,9 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   
   bool _isLoading = false;
   bool _isLoadingData = true;
+  bool _isUploadingNic = false;
+  bool _isUploadingDriving = false;
+  bool _isUploadingPolice = false;
   
   // Identity documents
   File? _nicDocument;
@@ -329,57 +337,16 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                   ),
                 ],
               ),
-              child: _profileImage != null
-                  ? ClipOval(
-                      child: Image.file(
-                        _profileImage!,
-                        width: 120,
-                        height: 120,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : _profileImageUrl != null
-                      ? ClipOval(
-                          child: Image.network(
-                            _profileImageUrl!,
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 40,
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.photo_library,
-                            color: Colors.white,
-                            size: 40,
-                          ),
-                        ),
+              child: _buildProfileImageWidget(),
             ),
           ),
           const SizedBox(height: 15),
           Text(
-            _profileImage != null || _profileImageUrl != null ? 'Change Photo' : 'Add Photo from Gallery (Optional)',
+            (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) || 
+            _profileImage != null || 
+            _profileImageBase64 != null
+                ? (kIsWeb ? 'Image Uploaded (Web)' : 'Change Photo')
+                : 'Add Photo from Gallery',
             style: const TextStyle(
               color: Color(0xFF667eea),
               fontWeight: FontWeight.w600,
@@ -940,50 +907,75 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
             width: hasFile ? 2 : 1,
           ),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: hasFile 
-                    ? const Color(0xFF667eea) 
-                    : Colors.grey[300],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: hasFile ? Colors.white : Colors.grey[600],
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: hasFile ? const Color(0xFF667eea) : Colors.black,
-                    ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: hasFile 
+                        ? const Color(0xFF667eea) 
+                        : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    hasFile ? 'Document uploaded' : subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: hasFile ? const Color(0xFF667eea) : Colors.grey[600],
-                    ),
+                  child: Icon(
+                    icon,
+                    color: hasFile ? Colors.white : Colors.grey[600],
+                    size: 24,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: hasFile ? const Color(0xFF667eea) : Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _getDocumentStatusText(file, fileUrl),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: hasFile ? const Color(0xFF667eea) : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isDocumentUploading(title)) ...[
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Icon(
+                      hasFile ? Icons.check_circle : Icons.upload,
+                      color: hasFile ? const Color(0xFF667eea) : Colors.grey[400],
+                    ),
+                  ],
+                ),
+              ],
             ),
-            Icon(
-              hasFile ? Icons.check_circle : Icons.upload,
-              color: hasFile ? const Color(0xFF667eea) : Colors.grey[400],
-            ),
+            // Show image preview if document is uploaded
+            if (hasFile) ...[
+              const SizedBox(height: 12),
+              _buildDocumentImagePreview(file, fileUrl),
+            ],
           ],
         ),
       ),
@@ -1089,6 +1081,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      print('📸 Starting image picker with source: $source');
       final XFile? image = await _picker.pickImage(
         source: source,
         maxWidth: 800,
@@ -1097,14 +1090,72 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       );
       
       if (image != null) {
+        print('📸 Image selected: ${image.path}');
         setState(() {
           _profileImage = File(image.path);
+          _isLoadingImage = true;
         });
+        
+        // Upload image immediately for web compatibility
+        if (kIsWeb) {
+          await _uploadImageForWeb(image);
+        } else {
+          // For mobile, we'll upload when the profile is created
+          setState(() {
+            _isLoadingImage = false;
+          });
+        }
       }
     } catch (e) {
+      print('❌ Error picking image: $e');
+      setState(() {
+        _isLoadingImage = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _uploadImageForWeb(XFile image) async {
+    try {
+      print('🌐 Uploading image for web platform');
+      final user = _firebaseService.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final imageBytes = await image.readAsBytes();
+      final imageUrl = await _firebaseService.uploadProfileImage(user.uid, imageBytes);
+      
+      setState(() {
+        _profileImageUrl = imageUrl;
+        _isLoadingImage = false;
+        // Clear local image so the new network image can be displayed
+        _profileImage = null;
+        _profileImageBase64 = null;
+      });
+      
+      print('✅ Image uploaded successfully, URL: $imageUrl');
+      print('📸 Updated _profileImageUrl in state: $_profileImageUrl');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile image updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('❌ Error uploading image: $e');
+      setState(() {
+        _isLoadingImage = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading image: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1148,6 +1199,9 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
               break;
           }
         });
+        
+        // Upload document immediately
+        await _uploadDocumentDirectly(documentType, await file.readAsBytes());
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1156,6 +1210,114 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _uploadDocumentDirectly(String documentType, Uint8List imageBytes) async {
+    try {
+      print('📤 Uploading document directly to Firebase Storage: $documentType');
+      final user = _firebaseService.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Set loading state
+      setState(() {
+        switch (documentType) {
+          case 'nic':
+            _isUploadingNic = true;
+            break;
+          case 'driving':
+            _isUploadingDriving = true;
+            break;
+          case 'police':
+            _isUploadingPolice = true;
+            break;
+        }
+      });
+
+      String documentUrl;
+      switch (documentType) {
+        case 'nic':
+          documentUrl = await _firebaseService.uploadDocument(user.uid, 'nic', imageBytes);
+          setState(() {
+            _nicDocumentUrl = documentUrl;
+            _nicDocument = null; // Clear local file after successful upload
+            _isUploadingNic = false;
+          });
+          break;
+        case 'driving':
+          documentUrl = await _firebaseService.uploadDocument(user.uid, 'driving_licence', imageBytes);
+          setState(() {
+            _drivingLicenceDocumentUrl = documentUrl;
+            _drivingLicenceDocument = null; // Clear local file after successful upload
+            _isUploadingDriving = false;
+          });
+          break;
+        case 'police':
+          documentUrl = await _firebaseService.uploadDocument(user.uid, 'police_report', imageBytes);
+          setState(() {
+            _policeReportDocumentUrl = documentUrl;
+            _policeReportDocument = null; // Clear local file after successful upload
+            _isUploadingPolice = false;
+          });
+          break;
+      }
+
+      print('✅ Document uploaded successfully: $documentType');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_getDocumentTypeName(documentType)} uploaded successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('❌ Error uploading document: $e');
+      
+      // Reset loading state on error
+      setState(() {
+        switch (documentType) {
+          case 'nic':
+            _isUploadingNic = false;
+            break;
+          case 'driving':
+            _isUploadingDriving = false;
+            break;
+          case 'police':
+            _isUploadingPolice = false;
+            break;
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading ${_getDocumentTypeName(documentType)}: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _getDocumentTypeName(String documentType) {
+    switch (documentType) {
+      case 'nic':
+        return 'NIC Document';
+      case 'driving':
+        return 'Driving Licence';
+      case 'police':
+        return 'Police Report';
+      default:
+        return 'Document';
+    }
+  }
+
+  String _getDocumentStatusText(File? file, String? fileUrl) {
+    if (file != null) {
+      return 'Uploading document...';
+    } else if (fileUrl != null && fileUrl.isNotEmpty) {
+      return 'Document uploaded successfully - tap to update';
+    } else {
+      return 'Tap to upload document';
     }
   }
 
@@ -1220,8 +1382,16 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
 
       // Upload new image if one was selected (optional)
       if (_profileImage != null) {
+        print('📸 Uploading new profile image');
         final imageBytes = await _profileImage!.readAsBytes();
         imageUrl = await _firebaseService.uploadProfileImage(user.uid, imageBytes);
+        print('✅ Profile image uploaded successfully');
+        
+        // Clear local image after successful upload
+        setState(() {
+          _profileImage = null;
+          _profileImageBase64 = null;
+        });
       }
 
       // Upload identity documents if new ones were selected (all optional)
@@ -1230,27 +1400,73 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       String? policeReportDocumentUrl = _policeReportDocumentUrl;
 
       if (_nicDocument != null) {
-        final nicBytes = await _nicDocument!.readAsBytes();
-        nicDocumentUrl = await _firebaseService.uploadProfileImage(
-          '${user.uid}_nic_${DateTime.now().millisecondsSinceEpoch}', 
-          nicBytes
-        );
+        try {
+          print('📄 Uploading NIC document');
+          final nicBytes = await _nicDocument!.readAsBytes();
+          nicDocumentUrl = await _firebaseService.uploadDocument(user.uid, 'nic', nicBytes);
+          print('✅ NIC document uploaded successfully');
+          
+          // Update state with uploaded URL and clear local document
+          setState(() {
+            _nicDocumentUrl = nicDocumentUrl;
+            _nicDocument = null;
+          });
+        } catch (e) {
+          print('❌ Error uploading NIC document: $e');
+          // Continue without the document rather than failing the entire profile update
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Warning: Could not upload NIC document: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
 
       if (_drivingLicenceDocument != null) {
-        final drivingBytes = await _drivingLicenceDocument!.readAsBytes();
-        drivingLicenceDocumentUrl = await _firebaseService.uploadProfileImage(
-          '${user.uid}_driving_${DateTime.now().millisecondsSinceEpoch}', 
-          drivingBytes
-        );
+        try {
+          print('🚗 Uploading driving licence document');
+          final drivingBytes = await _drivingLicenceDocument!.readAsBytes();
+          drivingLicenceDocumentUrl = await _firebaseService.uploadDocument(user.uid, 'driving_licence', drivingBytes);
+          print('✅ Driving licence document uploaded successfully');
+          
+          // Update state with uploaded URL and clear local document
+          setState(() {
+            _drivingLicenceDocumentUrl = drivingLicenceDocumentUrl;
+            _drivingLicenceDocument = null;
+          });
+        } catch (e) {
+          print('❌ Error uploading driving licence document: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Warning: Could not upload driving licence document: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
 
       if (_policeReportDocument != null) {
-        final policeBytes = await _policeReportDocument!.readAsBytes();
-        policeReportDocumentUrl = await _firebaseService.uploadProfileImage(
-          '${user.uid}_police_${DateTime.now().millisecondsSinceEpoch}', 
-          policeBytes
-        );
+        try {
+          print('🛡️ Uploading police report document');
+          final policeBytes = await _policeReportDocument!.readAsBytes();
+          policeReportDocumentUrl = await _firebaseService.uploadDocument(user.uid, 'police_report', policeBytes);
+          print('✅ Police report document uploaded successfully');
+          
+          // Update state with uploaded URL and clear local document
+          setState(() {
+            _policeReportDocumentUrl = policeReportDocumentUrl;
+            _policeReportDocument = null;
+          });
+        } catch (e) {
+          print('❌ Error uploading police report document: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Warning: Could not upload police report document: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
 
       // Calculate age from date of birth
@@ -1313,6 +1529,352 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Widget _buildProfileImageWidget() {
+    final hasImage = (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) || 
+                    _profileImage != null || 
+                    _profileImageBase64 != null;
+    
+    print('🖼️ Image display check: hasImage=$hasImage, _profileImageUrl=$_profileImageUrl, _profileImage=$_profileImage, _profileImageBase64=${_profileImageBase64 != null}');
+    
+    // Debug: Check if URL contains profile_images path
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      print('🔍 Profile image URL contains profile_images: ${_profileImageUrl!.contains('profile_images')}');
+      print('🔍 Full URL: $_profileImageUrl');
+    }
+    
+    if (!hasImage) {
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          ),
+        ),
+        child: const Icon(
+          Icons.photo_library,
+          color: Colors.white,
+          size: 40,
+        ),
+      );
+    }
+    
+    if (kIsWeb) {
+      return _buildWebProfileImage();
+    } else {
+      return _buildMobileProfileImage();
+    }
+  }
+
+  Widget _buildWebProfileImage() {
+    if (_isLoadingImage) {
+      return Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          ),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+    
+    // Show base64 image only if no network URL is available
+    if (_profileImageBase64 != null && (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+      return ClipOval(
+        child: Image.memory(
+          base64Decode(_profileImageBase64!),
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Error displaying base64 image: $error');
+            return _buildWebFallbackImage();
+          },
+        ),
+      );
+    }
+    
+    // For web, try to load the network image first
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          _profileImageUrl!,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                ),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Error loading web image: $error');
+            // Show CORS fallback only if there's actually a CORS error
+            if (error.toString().contains('CORS') || 
+                error.toString().contains('XMLHttpRequest') ||
+                error.toString().contains('blocked')) {
+              return _buildWebCorsFallbackImage();
+            }
+            return _buildWebFallbackImage();
+          },
+        ),
+      );
+    }
+    
+    return _buildWebFallbackImage();
+  }
+
+  Widget _buildWebFallbackImage() {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+        ),
+      ),
+      child: const Icon(
+        Icons.person,
+        color: Colors.white,
+        size: 40,
+      ),
+    );
+  }
+
+  Widget _buildWebCorsFallbackImage() {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.cloud_off,
+            color: Colors.white,
+            size: 20,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'CORS Issue',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Try Mobile',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileProfileImage() {
+    // If we have a local file AND no network URL, show it immediately
+    // This prevents showing old local image when new network image is available
+    if (_profileImage != null && (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+      print('📱 Displaying local profile image: ${_profileImage!.path}');
+      return Image.file(
+        _profileImage!,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading local image: $error');
+          return _buildMobileFallbackImage();
+        },
+      );
+    }
+
+    // If we have a network URL, load it
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      print('📱 Attempting to load network image: $_profileImageUrl');
+      print('📱 URL contains profile_images: ${_profileImageUrl!.contains('profile_images')}');
+      
+      return Image.network(
+        _profileImageUrl!,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            print('✅ Network image loaded successfully');
+            return child;
+          }
+          print('⏳ Loading network image: ${loadingProgress.cumulativeBytesLoaded}/${loadingProgress.expectedTotalBytes}');
+          return Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+              ),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading profile image: $error');
+          print('❌ Image URL: $_profileImageUrl');
+          print('❌ Stack trace: $stackTrace');
+          print('❌ URL contains profile_images: ${_profileImageUrl!.contains('profile_images')}');
+          return _buildMobileFallbackImage();
+        },
+      );
+    }
+
+    return _buildMobileFallbackImage();
+  }
+
+  Widget _buildMobileFallbackImage() {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+        ),
+      ),
+      child: const Icon(
+        Icons.person,
+        color: Colors.white,
+        size: 40,
+      ),
+    );
+  }
+
+  Widget _buildDocumentImagePreview(File? file, String? fileUrl) {
+    return Container(
+      height: 120,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: _buildDocumentImageWidget(file, fileUrl),
+      ),
+    );
+  }
+
+  Widget _buildDocumentImageWidget(File? file, String? fileUrl) {
+    print('🖼️ Building document image widget: file=${file?.path}, fileUrl=$fileUrl');
+    
+    // If we have a local file AND no network URL, show it immediately
+    // Note: Image.file is not supported on web, so we skip local file display on web
+    if (file != null && (fileUrl == null || fileUrl.isEmpty) && !kIsWeb) {
+      print('📱 Displaying local document image: ${file.path}');
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading local document image: $error');
+          return _buildDocumentFallbackImage();
+        },
+      );
+    }
+
+    // If we have a network URL, load it
+    if (fileUrl != null && fileUrl.isNotEmpty) {
+      print('🌐 Loading network document image: $fileUrl');
+      return Image.network(
+        fileUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            print('✅ Network document image loaded successfully');
+            return child;
+          }
+          print('⏳ Loading network document image: ${loadingProgress.cumulativeBytesLoaded}/${loadingProgress.expectedTotalBytes}');
+          return Container(
+            color: Colors.grey[100],
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading network document image: $error');
+          return _buildDocumentFallbackImage();
+        },
+      );
+    }
+
+    print('📄 No document image available, showing fallback');
+    return _buildDocumentFallbackImage();
+  }
+
+  Widget _buildDocumentFallbackImage() {
+    return Container(
+      color: Colors.grey[100],
+      child: const Center(
+        child: Icon(
+          Icons.image,
+          color: Colors.grey,
+          size: 40,
+        ),
+      ),
+    );
+  }
+
+  bool _isDocumentUploading(String title) {
+    switch (title) {
+      case 'NIC Document':
+        return _isUploadingNic;
+      case 'Driving Licence':
+        return _isUploadingDriving;
+      case 'Police Report':
+        return _isUploadingPolice;
+      default:
+        return false;
     }
   }
 }

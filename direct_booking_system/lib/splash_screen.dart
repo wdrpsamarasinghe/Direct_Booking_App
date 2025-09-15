@@ -119,15 +119,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final Size screenSize = MediaQuery.of(context).size;
-    final double shortestSide = screenSize.shortestSide;
-    // Responsive sizing based on device size
-    final double logoContainerSize = (shortestSide * 0.35).clamp(110.0, 200.0);
-    final double logoIconSize = (logoContainerSize * 0.53).clamp(60.0, 120.0);
-    final double appTitleSize = (shortestSide * 0.09).clamp(26.0, 42.0);
-    final double taglineSize = (shortestSide * 0.04).clamp(12.0, 18.0);
-    final double bottomSpace = (screenSize.height * 0.07).clamp(36.0, 80.0);
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -140,104 +131,170 @@ class _SplashScreenState extends State<SplashScreen>
             ],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const Spacer(),
-              
-              // Logo with animations
-              AnimatedBuilder(
-                animation: _logoController,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _logoScaleAnimation.value,
-                    child: Transform.rotate(
-                      angle: _logoRotationAnimation.value * 2 * 3.14159,
-                      child: Container(
-                        height: logoContainerSize,
-                        width: logoContainerSize,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(40),
-                          boxShadow: AppTheme.floatingShadow,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final Size screenSize = Size(constraints.maxWidth, constraints.maxHeight);
+            final double shortestSide = screenSize.shortestSide;
+            final double longestSide = screenSize.longestSide;
+            final bool isLandscape = constraints.maxWidth > constraints.maxHeight;
+            
+            // Responsive sizing based on screen dimensions and orientation
+            final double logoContainerSize = _getResponsiveSize(
+              shortestSide * (isLandscape ? 0.25 : 0.35),
+              isLandscape ? 80.0 : 110.0,
+              isLandscape ? 150.0 : 200.0,
+            );
+            
+            final double appTitleSize = _getResponsiveSize(
+              shortestSide * (isLandscape ? 0.06 : 0.09),
+              isLandscape ? 20.0 : 26.0,
+              isLandscape ? 32.0 : 42.0,
+            );
+            
+            final double taglineSize = _getResponsiveSize(
+              shortestSide * (isLandscape ? 0.035 : 0.04),
+              isLandscape ? 10.0 : 12.0,
+              isLandscape ? 14.0 : 18.0,
+            );
+            
+            final double loadingSize = _getResponsiveSize(
+              shortestSide * (isLandscape ? 0.08 : 0.1),
+              isLandscape ? 30.0 : 40.0,
+              isLandscape ? 50.0 : 60.0,
+            );
+            
+            // Dynamic spacing based on screen size
+            final double verticalSpacing = _getResponsiveSize(
+              screenSize.height * (isLandscape ? 0.02 : 0.03),
+              isLandscape ? 8.0 : 12.0,
+              isLandscape ? 20.0 : 30.0,
+            );
+            
+            final double bottomPadding = _getResponsiveSize(
+              screenSize.height * (isLandscape ? 0.03 : 0.07),
+              isLandscape ? 20.0 : 36.0,
+              isLandscape ? 40.0 : 80.0,
+            );
+            
+            // Handle safe area for notched devices
+            final EdgeInsets safeAreaPadding = MediaQuery.of(context).padding;
+            final double topPadding = safeAreaPadding.top;
+            final double bottomSafePadding = safeAreaPadding.bottom;
+            
+            return Container(
+              width: double.infinity,
+              height: double.infinity,
+              padding: EdgeInsets.only(
+                top: topPadding,
+                bottom: bottomSafePadding,
+                left: safeAreaPadding.left,
+                right: safeAreaPadding.right,
+              ),
+              child: Column(
+                children: [
+                  SizedBox(height: isLandscape ? verticalSpacing * 2 : verticalSpacing * 3),
+                  
+                  // Logo with animations
+                  AnimatedBuilder(
+                    animation: _logoController,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _logoScaleAnimation.value,
+                        child: Transform.rotate(
+                          angle: _logoRotationAnimation.value * 2 * 3.14159,
+                          child: Container(
+                            height: logoContainerSize,
+                            width: logoContainerSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(logoContainerSize * 0.2),
+                              boxShadow: AppTheme.floatingShadow,
+                            ),
+                            child: Icon(
+                              Icons.explore,
+                              color: Colors.white,
+                              size: logoContainerSize * 0.5,
+                            ),
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.explore,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // App name with slide animation
-              SlideTransition(
-                position: _textSlideAnimation,
-                child: Text(
-                  'Guide Pro',
-                  style: TextStyle(
-                    fontSize: appTitleSize,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
+                      );
+                    },
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Tagline with fade animation
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Text(
-                  'Manage Your Tours with Ease',
-                  style: TextStyle(
-                    fontSize: taglineSize,
-                    color: Colors.white70,
-                    letterSpacing: 0.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              
-              const Spacer(),
-              
-              // Loading indicator
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Column(
-                  children: [
-                    const SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Loading...',
+                  
+                  SizedBox(height: verticalSpacing * 2),
+                  
+                  // App name with slide animation
+                  SlideTransition(
+                    position: _textSlideAnimation,
+                    child: Text(
+                      'Guide Pro',
                       style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.8),
-                        letterSpacing: 0.5,
+                        fontSize: appTitleSize,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: isLandscape ? 0.8 : 1.2,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                  ],
-                ),
+                  ),
+                  
+                  SizedBox(height: verticalSpacing * 0.5),
+                  
+                  // Tagline with fade animation
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Text(
+                      'Manage Your Tours with Ease',
+                      style: TextStyle(
+                        fontSize: taglineSize,
+                        color: Colors.white70,
+                        letterSpacing: isLandscape ? 0.3 : 0.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  const Spacer(),
+                  
+                  // Loading indicator
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: loadingSize,
+                          height: loadingSize,
+                          child: CircularProgressIndicator(
+                            strokeWidth: isLandscape ? 2.5 : 3.0,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        SizedBox(height: verticalSpacing),
+                        Text(
+                          'Loading...',
+                          style: TextStyle(
+                            fontSize: taglineSize * 0.8,
+                            color: Colors.white.withOpacity(0.8),
+                            letterSpacing: isLandscape ? 0.3 : 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  SizedBox(height: bottomPadding),
+                ],
               ),
-              
-              SizedBox(height: bottomSpace),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+  
+  /// Helper method to get responsive size with min/max constraints
+  double _getResponsiveSize(double baseSize, double minSize, double maxSize) {
+    return baseSize.clamp(minSize, maxSize);
   }
 }
 
