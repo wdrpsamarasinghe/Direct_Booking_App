@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/firebase_service.dart';
 import 'publish_trip_form.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'components/verification_badge.dart';
 
 class TouristTrips extends StatefulWidget {
   const TouristTrips({Key? key}) : super(key: key);
@@ -1238,13 +1239,16 @@ class _TouristTripsState extends State<TouristTrips> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      applicant['guideName']?.toString() ?? 'Unknown Guide',
-                      style: const TextStyle(
+                    UserNameWithVerification(
+                      name: applicant['guideName']?.toString() ?? 'Unknown Guide',
+                      verificationStatus: applicant['guideVerificationStatus']?.toString() ?? 'pending',
+                      nameStyle: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF2d3748),
                       ),
+                      badgeSize: 14,
+                      showBadgeText: true,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1797,13 +1801,16 @@ class _TouristTripsState extends State<TouristTrips> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          applicant['guideName']?.toString() ?? 'Unknown Guide',
-                          style: const TextStyle(
+                        UserNameWithVerification(
+                          name: applicant['guideName']?.toString() ?? 'Unknown Guide',
+                          verificationStatus: applicant['guideVerificationStatus']?.toString() ?? 'pending',
+                          nameStyle: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF2d3748),
                           ),
+                          badgeSize: 18,
+                          showBadgeText: true,
                         ),
                         const SizedBox(height: 4),
                         Row(

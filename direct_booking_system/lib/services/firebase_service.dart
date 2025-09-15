@@ -60,6 +60,7 @@ class FirebaseService {
         'updatedAt': FieldValue.serverTimestamp(),
         'isActive': true,
         'profileCompleted': false,
+        'verificationStatus': 'pending', // Default verification status
       };
 
       // Store user data in Firestore
@@ -446,6 +447,55 @@ class FirebaseService {
     }
   }
 
+  // User verification methods
+  Future<void> approveUserVerification(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'verificationStatus': 'verified',
+        'verifiedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error approving user verification: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> rejectUserVerification(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'verificationStatus': 'rejected',
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error rejecting user verification: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingVerificationUsers() async {
+    try {
+      final QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .where('verificationStatus', isEqualTo: 'pending')
+          .get();
+
+      List<Map<String, dynamic>> users = [];
+      
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
+        userData['id'] = doc.id;
+        users.add(userData);
+      }
+      
+      return users;
+    } catch (e) {
+      print('Error fetching pending verification users: $e');
+      return [];
+    }
+  }
+
   Future<String> uploadDocument(String userId, String documentType, Uint8List imageBytes) async {
     try {
       // Use conservative naming to avoid Firebase Storage issues
@@ -607,6 +657,50 @@ class FirebaseService {
     } catch (e) {
       print('❌ Error getting signed download URL: $e');
       return null;
+    }
+  }
+
+  Future<String?> getDocumentDownloadUrl(String documentUrl) async {
+    try {
+      print('📄 Getting document download URL: $documentUrl');
+      
+      // If it's already a Firebase Storage URL, try to get a fresh signed URL
+      if (documentUrl.contains('firebasestorage.googleapis.com')) {
+        // Extract the file path from the URL
+        final uri = Uri.parse(documentUrl);
+        final pathSegments = uri.pathSegments;
+        
+        if (pathSegments.length >= 3) {
+          // Firebase Storage URL format: /v0/b/{bucket}/o/{path}?{params}
+          final bucketIndex = pathSegments.indexOf('b') + 1;
+          final objectIndex = pathSegments.indexOf('o') + 1;
+          
+          if (bucketIndex < pathSegments.length && objectIndex < pathSegments.length) {
+            final bucket = pathSegments[bucketIndex];
+            final encodedPath = pathSegments[objectIndex];
+            final decodedPath = Uri.decodeComponent(encodedPath);
+            
+            print('📄 Extracted path: $decodedPath');
+            
+            // Get a fresh download URL
+            final ref = _storage.ref().child(decodedPath);
+            final freshUrl = await ref.getDownloadURL();
+            
+            // Add timestamp to bypass cache
+            final signedUrl = '$freshUrl&t=${DateTime.now().millisecondsSinceEpoch}';
+            print('✅ Fresh document URL: $signedUrl');
+            return signedUrl;
+          }
+        }
+      }
+      
+      // If we can't extract the path or it's not a Firebase URL, return the original URL with timestamp
+      final signedUrl = '$documentUrl&t=${DateTime.now().millisecondsSinceEpoch}';
+      print('✅ Document URL with timestamp: $signedUrl');
+      return signedUrl;
+    } catch (e) {
+      print('❌ Error getting document download URL: $e');
+      return documentUrl; // Return original URL as fallback
     }
   }
 
@@ -1339,6 +1433,20 @@ class FirebaseService {
         }
         if (applicationData['tripEndDate'] != null) {
           applicationData['tripEndDate'] = (applicationData['tripEndDate'] as Timestamp).toDate();
+        }
+        
+        // Fetch guide verification status
+        try {
+          DocumentSnapshot guideDoc = await _firestore.collection('users').doc(applicationData['guideId']).get();
+          if (guideDoc.exists) {
+            Map<String, dynamic> guideData = guideDoc.data() as Map<String, dynamic>;
+            applicationData['guideVerificationStatus'] = guideData['verificationStatus'] ?? 'pending';
+          } else {
+            applicationData['guideVerificationStatus'] = 'pending';
+          }
+        } catch (e) {
+          print('Error fetching guide verification status: $e');
+          applicationData['guideVerificationStatus'] = 'pending';
         }
         
         applications.add(applicationData);

@@ -21,10 +21,12 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
   Map<String, int> _userCounts = {};
   Map<String, int> _tripStats = {};
   Map<String, int> _applicationStats = {};
+  Map<String, int> _verificationStats = {};
   List<Map<String, dynamic>> _recentActivities = [];
   List<Map<String, dynamic>> _topGuides = [];
   List<Map<String, dynamic>> _recentUsers = [];
   List<Map<String, dynamic>> _pendingApplications = [];
+  List<Map<String, dynamic>> _pendingVerifications = [];
 
   @override
   void initState() {
@@ -42,10 +44,12 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
         _loadUserStatistics(),
         _loadTripStatistics(),
         _loadApplicationStatistics(),
+        _loadVerificationStatistics(),
         _loadRecentActivities(),
         _loadTopGuides(),
         _loadRecentUsers(),
         _loadPendingApplications(),
+        _loadPendingVerifications(),
       ]);
     } catch (e) {
       print('Error loading dashboard data: $e');
@@ -163,6 +167,53 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
       });
     } catch (e) {
       print('Error loading trip statistics: $e');
+    }
+  }
+
+  // Load verification statistics from users collection
+  Future<void> _loadVerificationStatistics() async {
+    try {
+      final QuerySnapshot snapshot = await _firebaseService.firestore
+          .collection('users')
+          .get();
+
+      int pending = 0;
+      int verified = 0;
+      int rejected = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final status = data['verificationStatus'] ?? 'pending';
+        
+        switch (status) {
+          case 'pending':
+            pending++;
+            break;
+          case 'verified':
+            verified++;
+            break;
+          case 'rejected':
+            rejected++;
+            break;
+        }
+      }
+
+      _verificationStats = {
+        'pending': pending,
+        'verified': verified,
+        'rejected': rejected,
+        'total': pending + verified + rejected,
+      };
+
+      print('✅ Verification stats loaded: $_verificationStats');
+    } catch (e) {
+      print('❌ Error loading verification statistics: $e');
+      _verificationStats = {
+        'pending': 0,
+        'verified': 0,
+        'rejected': 0,
+        'total': 0,
+      };
     }
   }
 
@@ -410,6 +461,41 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
     }
   }
 
+  // Load pending verification users
+  Future<void> _loadPendingVerifications() async {
+    try {
+      final QuerySnapshot snapshot = await _firebaseService.firestore
+          .collection('users')
+          .where('verificationStatus', isEqualTo: 'pending')
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .get();
+      
+      List<Map<String, dynamic>> verifications = [];
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        
+        verifications.add({
+          'id': doc.id,
+          'name': data['name'] ?? 'Unknown User',
+          'email': data['email'] ?? '',
+          'role': data['role'] ?? 'user',
+          'createdAt': data['createdAt'],
+          'verificationStatus': data['verificationStatus'],
+          'phone': data['phone'] ?? 'Not provided',
+          'location': data['location'] ?? 'Not specified',
+        });
+      }
+      
+      setState(() {
+        _pendingVerifications = verifications;
+      });
+    } catch (e) {
+      print('Error loading pending verifications: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -459,6 +545,10 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
                       
                       // Pending Actions Section
                       _buildPendingActionsSection(),
+                      SizedBox(height: verticalSpacing),
+                      
+                      // Pending Verifications Section
+                      _buildPendingVerificationsSection(),
                       SizedBox(height: verticalSpacing),
                       
                       // Top Performers Section
@@ -729,6 +819,14 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
                   icon: Icons.assignment,
                   color: const Color(0xFFe53e3e),
                   trend: '+23%',
+                ),
+                _buildMetricCard(
+                  title: 'Verifications',
+                  value: '${_verificationStats['total'] ?? 0}',
+                  subtitle: '${_verificationStats['pending'] ?? 0} pending',
+                  icon: Icons.verified_user,
+                  color: const Color(0xFF9f7aea),
+                  trend: '+5%',
                 ),
               ],
             );
@@ -1201,6 +1299,198 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
     );
   }
 
+  Widget _buildPendingVerificationsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildResponsiveTitle('Pending Verifications'),
+            if (_pendingVerifications.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFed8936).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${_pendingVerifications.length} pending',
+                  style: const TextStyle(
+                    color: Color(0xFFed8936),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        if (_pendingVerifications.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.verified_user_outlined,
+                  size: 48,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No Pending Verifications',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'All users have been verified',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: _pendingVerifications.take(5).map((verification) {
+                return _buildPendingVerificationCard(verification);
+              }).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPendingVerificationCard(Map<String, dynamic> verification) {
+    final createdAt = verification['createdAt'] as Timestamp?;
+    final timeAgo = createdAt != null ? _getTimeAgo(createdAt.toDate()) : 'Unknown';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFed8936).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFed8936).withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFed8936).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.verified_user,
+              color: Color(0xFFed8936),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  verification['name'] ?? 'Unknown User',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2d3748),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  verification['email'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFed8936).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        verification['role']?.toString().toUpperCase() ?? 'USER',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFed8936),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      timeAgo,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _approveVerification(verification['id']),
+                icon: const Icon(Icons.check_circle, color: Color(0xFF48bb78)),
+                tooltip: 'Approve',
+              ),
+              IconButton(
+                onPressed: () => _rejectVerification(verification['id']),
+                icon: const Icon(Icons.cancel, color: Color(0xFFe53e3e)),
+                tooltip: 'Reject',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopPerformersSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1491,6 +1781,52 @@ class _AdminDashboardSimpleState extends State<AdminDashboardSimple> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error rejecting application: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _approveVerification(String userId) async {
+    try {
+      await _firebaseService.approveUserVerification(userId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User verification approved successfully'),
+          backgroundColor: Color(0xFF48bb78),
+        ),
+      );
+      
+      // Refresh the data
+      _loadPendingVerifications();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error approving verification: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _rejectVerification(String userId) async {
+    try {
+      await _firebaseService.rejectUserVerification(userId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User verification rejected successfully'),
+          backgroundColor: Color(0xFFe53e3e),
+        ),
+      );
+      
+      // Refresh the data
+      _loadPendingVerifications();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error rejecting verification: $e'),
           backgroundColor: Colors.red,
         ),
       );

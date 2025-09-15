@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'services/firebase_service.dart';
 import 'signin_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'theme/app_theme.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'tourist_trips.dart';
 import 'tourist_ongoing_page.dart';
-import 'components/review_modal.dart';
+import 'components/verification_badge.dart';
 
 class TouristHomePage extends StatefulWidget {
   const TouristHomePage({Key? key}) : super(key: key);
@@ -241,13 +244,17 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
                         }
                         final data = snapshot.data?.data() as Map<String, dynamic>?;
                         final String name = (data?['name'] as String?) ?? 'Tourist';
-                        return Text(
-                          name,
-                          style: const TextStyle(
+                        final String verificationStatus = (data?['verificationStatus'] as String?) ?? 'pending';
+                        return UserNameWithVerification(
+                          name: name,
+                          verificationStatus: verificationStatus,
+                          nameStyle: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,
                           ),
+                          badgeSize: 16,
+                          showBadgeText: true,
                         );
                       },
                     ),
@@ -1659,27 +1666,9 @@ class TouristProfilePage extends StatefulWidget {
   State<TouristProfilePage> createState() => _TouristProfilePageState();
 }
 
-class _TouristProfilePageState extends State<TouristProfilePage> with TickerProviderStateMixin {
-  int _currentTabIndex = 0;
-  late TabController _tabController;
-  
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: _currentTabIndex);
-    _tabController.addListener(() {
-      setState(() {
-        _currentTabIndex = _tabController.index;
-      });
-    });
-  }
-  
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-  
+class _TouristProfilePageState extends State<TouristProfilePage> {
+  final GlobalKey<_TouristProfileFormState> _formKey = GlobalKey<_TouristProfileFormState>();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1695,26 +1684,23 @@ class _TouristProfilePageState extends State<TouristProfilePage> with TickerProv
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF2d3748)),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF667eea),
-          labelColor: const Color(0xFF667eea),
-          unselectedLabelColor: Colors.grey[600],
-          tabs: const [
-            Tab(text: 'Profile Info'),
-            Tab(text: 'Bookings'),
-            Tab(text: 'My Reviews'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          const TouristProfileForm(),
-          const TouristTrips(),
-          const TouristReviewsPage(),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _formKey.currentState?.saveProfile();
+            },
+            child: const Text(
+              'Update',
+              style: TextStyle(
+                color: Color(0xFF667eea),
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ),
         ],
       ),
+      body: TouristProfileForm(key: _formKey),
     );
   }
 }
@@ -1742,6 +1728,9 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
   File? _passportImage;
   String? _profileImageUrl;
   String? _passportImageUrl;
+  String? _profileImageBase64;
+  String? _passportImageBase64;
+  bool _isLoadingImage = false;
   final ImagePicker _picker = ImagePicker();
   final FirebaseService _firebaseService = FirebaseService();
   
@@ -1753,6 +1742,7 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
   
   bool _isLoading = false;
   bool _isLoadingData = true;
+  bool _profileExists = false;
   
   final List<String> _availableLanguages = [
     'English', 'Sinhala', 'Tamil', 'French', 'German', 'Spanish', 
@@ -1839,6 +1829,7 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
             _emergencyContact2Controller.text = userData['emergencyContact2'] ?? '';
             _relationshipController.text = userData['emergencyRelationship'] ?? '';
             
+            _profileExists = true; // Profile data exists
             _isLoadingData = false;
           });
         } else {
@@ -1899,8 +1890,6 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
                 _buildEmergencyContactSection(),
                 const SizedBox(height: 30),
                 
-                // Save Button
-                _buildSaveButton(),
                 const SizedBox(height: 20),
               ],
             ),
@@ -2107,52 +2096,7 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
                 ),
               ],
             ),
-            child: file != null
-                ? ClipOval(
-                    child: Image.file(
-                      file,
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : fileUrl != null
-                    ? ClipOval(
-                        child: Image.network(
-                          fileUrl,
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                                ),
-                              ),
-                              child: Icon(
-                                type == 'profile' ? Icons.person : Icons.credit_card,
-                                color: Colors.white,
-                                size: 40,
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                          ),
-                        ),
-                        child: Icon(
-                          type == 'profile' ? Icons.camera_alt : Icons.credit_card,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
+            child: _buildProfileImageWidget(file, fileUrl, type),
           ),
         ),
         const SizedBox(height: 15),
@@ -2165,6 +2109,189 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildProfileImageWidget(File? file, String? fileUrl, String type) {
+    final base64Image = type == 'profile' ? _profileImageBase64 : _passportImageBase64;
+    final hasImage = (fileUrl != null && fileUrl.isNotEmpty) || file != null || base64Image != null;
+    
+    if (!hasImage) {
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          ),
+        ),
+        child: Icon(
+          type == 'profile' ? Icons.camera_alt : Icons.credit_card,
+          color: Colors.white,
+          size: 40,
+        ),
+      );
+    }
+
+    // For web platforms, use a different approach to handle CORS issues
+    if (kIsWeb) {
+      return _buildWebProfileImage(file, fileUrl, base64Image, type);
+    } else {
+      return _buildMobileProfileImage(file, fileUrl, type);
+    }
+  }
+
+  Widget _buildWebProfileImage(File? file, String? fileUrl, String? base64Image, String type) {
+    if (_isLoadingImage) {
+      return Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          ),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+    
+    // Show base64 image only if no network URL is available
+    if (base64Image != null && (fileUrl == null || fileUrl.isEmpty)) {
+      return ClipOval(
+        child: Image.memory(
+          base64Decode(base64Image),
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildFallbackImage(type);
+          },
+        ),
+      );
+    }
+    
+    // For web, try to load the network image first
+    if (fileUrl != null && fileUrl.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          fileUrl,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                ),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            // If network image fails, try base64 image
+            if (base64Image != null) {
+              return ClipOval(
+                child: Image.memory(
+                  base64Decode(base64Image),
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildFallbackImage(type);
+                  },
+                ),
+              );
+            }
+            return _buildFallbackImage(type);
+          },
+        ),
+      );
+    }
+
+    return _buildFallbackImage(type);
+  }
+
+  Widget _buildMobileProfileImage(File? file, String? fileUrl, String type) {
+    // If we have a local file AND no network URL, show it immediately
+    if (file != null && (fileUrl == null || fileUrl.isEmpty)) {
+      return ClipOval(
+        child: Image.file(
+          file,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildFallbackImage(type);
+          },
+        ),
+      );
+    }
+
+    // If we have a network URL, load it
+    if (fileUrl != null && fileUrl.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          fileUrl,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                ),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return _buildFallbackImage(type);
+          },
+        ),
+      );
+    }
+
+    return _buildFallbackImage(type);
+  }
+
+  Widget _buildFallbackImage(String type) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+        ),
+      ),
+      child: Icon(
+        type == 'profile' ? Icons.person : Icons.credit_card,
+        color: Colors.white,
+        size: 40,
+      ),
     );
   }
 
@@ -2251,30 +2378,7 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
                 ),
               ],
             ),
-            child: _passportImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.file(
-                      _passportImage!,
-                      width: double.infinity,
-                      height: 200,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : _passportImageUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.network(
-                          _passportImageUrl!,
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return _buildPassportPlaceholder();
-                          },
-                        ),
-                      )
-                    : _buildPassportPlaceholder(),
+            child: _buildPassportImageWidget(),
           ),
         ),
         const SizedBox(height: 15),
@@ -2324,6 +2428,167 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
         ),
       ],
     );
+  }
+
+  Widget _buildPassportImageWidget() {
+    final hasImage = (_passportImageUrl != null && _passportImageUrl!.isNotEmpty) || 
+                    _passportImage != null || 
+                    _passportImageBase64 != null;
+    
+    if (!hasImage) {
+      return _buildPassportPlaceholder();
+    }
+
+    // For web platforms, use a different approach to handle CORS issues
+    if (kIsWeb) {
+      return _buildWebPassportImage();
+    } else {
+      return _buildMobilePassportImage();
+    }
+  }
+
+  Widget _buildWebPassportImage() {
+    if (_isLoadingImage) {
+      return Container(
+        width: double.infinity,
+        height: 200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          ),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+    
+    // Show base64 image only if no network URL is available
+    if (_passportImageBase64 != null && (_passportImageUrl == null || _passportImageUrl!.isEmpty)) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.memory(
+          base64Decode(_passportImageBase64!),
+          width: double.infinity,
+          height: 200,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildPassportPlaceholder();
+          },
+        ),
+      );
+    }
+    
+    // For web, try to load the network image first
+    if (_passportImageUrl != null && _passportImageUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          _passportImageUrl!,
+          width: double.infinity,
+          height: 200,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                ),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            // If network image fails, try base64 image
+            if (_passportImageBase64 != null) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.memory(
+                  base64Decode(_passportImageBase64!),
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildPassportPlaceholder();
+                  },
+                ),
+              );
+            }
+            return _buildPassportPlaceholder();
+          },
+        ),
+      );
+    }
+
+    return _buildPassportPlaceholder();
+  }
+
+  Widget _buildMobilePassportImage() {
+    // If we have a local file AND no network URL, show it immediately
+    if (_passportImage != null && (_passportImageUrl == null || _passportImageUrl!.isEmpty)) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.file(
+          _passportImage!,
+          width: double.infinity,
+          height: 200,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildPassportPlaceholder();
+          },
+        ),
+      );
+    }
+
+    // If we have a network URL, load it
+    if (_passportImageUrl != null && _passportImageUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          _passportImageUrl!,
+          width: double.infinity,
+          height: 200,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                ),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return _buildPassportPlaceholder();
+          },
+        ),
+      );
+    }
+
+    return _buildPassportPlaceholder();
   }
 
   Widget _buildPassportPlaceholder() {
@@ -2645,52 +2910,6 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
     );
   }
 
-  Widget _buildSaveButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _saveProfile,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF667eea),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 0,
-        ),
-        child: _isLoading
-            ? const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'Saving...',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              )
-            : Text(
-                _profileImageUrl != null ? 'Update Profile' : 'Create Profile',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      ),
-    );
-  }
 
   Future<void> _selectDateOfBirth() async {
     final DateTime? picked = await showDatePicker(
@@ -2790,6 +3009,32 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
 
   Future<void> _pickImage(ImageSource source, String type) async {
     try {
+      setState(() {
+        _isLoadingImage = true;
+      });
+
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text('Picking ${type == 'profile' ? 'profile' : 'passport'} image...'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF667eea),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
       final XFile? image = await _picker.pickImage(
         source: source,
         maxWidth: 800,
@@ -2798,25 +3043,72 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
       );
       
       if (image != null) {
+        // For web compatibility, convert to base64 first
+        String? base64Data;
+        if (kIsWeb) {
+          base64Data = base64Encode(await image.readAsBytes());
+        }
+        
         setState(() {
           if (type == 'profile') {
             _profileImage = File(image.path);
+            _profileImageBase64 = base64Data;
           } else {
             _passportImage = File(image.path);
+            _passportImageBase64 = base64Data;
           }
+          _isLoadingImage = false;
         });
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('${type == 'profile' ? 'Profile' : 'Passport'} image selected successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        setState(() {
+          _isLoadingImage = false;
+        });
+        // User cancelled
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image selection cancelled'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 1),
+          ),
+        );
       }
     } catch (e) {
+      print('Error picking image: $e');
+      setState(() {
+        _isLoadingImage = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error picking image: $e'),
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Error picking image: ${e.toString()}')),
+            ],
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
     }
   }
 
-  Future<void> _saveProfile() async {
+  Future<void> saveProfile() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -2846,19 +3138,49 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
 
       // Upload new images if selected
       if (_profileImage != null) {
-        final imageBytes = await _profileImage!.readAsBytes();
+        print('📸 Uploading profile image...');
+        Uint8List imageBytes;
+        if (kIsWeb && _profileImageBase64 != null) {
+          // For web, use base64 data
+          imageBytes = base64Decode(_profileImageBase64!);
+        } else {
+          // For mobile, read from file
+          imageBytes = await _profileImage!.readAsBytes();
+        }
         profileImageUrl = await _firebaseService.uploadProfileImage(
           '${user.uid}_profile_${DateTime.now().millisecondsSinceEpoch}', 
           imageBytes
         );
+        print('✅ Profile image uploaded successfully: $profileImageUrl');
+        
+        // Clear local image after successful upload
+        setState(() {
+          _profileImage = null;
+          _profileImageBase64 = null;
+        });
       }
 
       if (_passportImage != null) {
-        final imageBytes = await _passportImage!.readAsBytes();
+        print('📸 Uploading passport image...');
+        Uint8List imageBytes;
+        if (kIsWeb && _passportImageBase64 != null) {
+          // For web, use base64 data
+          imageBytes = base64Decode(_passportImageBase64!);
+        } else {
+          // For mobile, read from file
+          imageBytes = await _passportImage!.readAsBytes();
+        }
         passportImageUrl = await _firebaseService.uploadProfileImage(
           '${user.uid}_passport_${DateTime.now().millisecondsSinceEpoch}', 
           imageBytes
         );
+        print('✅ Passport image uploaded successfully: $passportImageUrl');
+        
+        // Clear local image after successful upload
+        setState(() {
+          _passportImage = null;
+          _passportImageBase64 = null;
+        });
       }
 
       // Calculate age from date of birth
@@ -2893,10 +3215,15 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
       // Update user profile in Firestore
       await _firebaseService.updateUserProfile(user.uid, profileData);
 
+      // Mark profile as existing after successful save
+      setState(() {
+        _profileExists = true;
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_profileImageUrl != null 
+            content: Text(_profileExists 
                 ? 'Profile updated successfully!' 
                 : 'Profile created successfully!'),
             backgroundColor: Colors.green,
@@ -2923,124 +3250,5 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
   }
 }
 
-class TouristReviewsPage extends StatefulWidget {
-  const TouristReviewsPage({Key? key}) : super(key: key);
-
-  @override
-  State<TouristReviewsPage> createState() => _TouristReviewsPageState();
-}
-
-class _TouristReviewsPageState extends State<TouristReviewsPage> {
-  final FirebaseService _firebaseService = FirebaseService();
-  List<Map<String, dynamic>> _reviews = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadReviews();
-  }
-
-  Future<void> _loadReviews() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final currentUser = _firebaseService.getCurrentUser();
-      if (currentUser == null) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      _reviews = await _firebaseService.getTouristReviews(currentUser.uid);
-      
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error loading reviews: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFf7fafc),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
-              ),
-            )
-          : _reviews.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadReviews,
-                  color: const Color(0xFF667eea),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _reviews.length,
-                    itemBuilder: (context, index) {
-                      final review = _reviews[index];
-                      return ReviewCard(review: review);
-                    },
-                  ),
-                ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.star_outline,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No Reviews Yet',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2d3748),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Your reviews will appear here after you complete trips',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _loadReviews(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF667eea),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 

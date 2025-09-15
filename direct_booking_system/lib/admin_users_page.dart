@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/firebase_service.dart';
+import 'user_detail_view_page.dart';
 
 class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({Key? key}) : super(key: key);
@@ -772,33 +773,17 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   }
 
   void _showUserDetails(String userId, Map<String, dynamic> userData) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('User Details'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('Name', userData['name'] ?? 'Unknown'),
-              _buildDetailRow('Email', userData['email'] ?? 'No email'),
-              _buildDetailRow('Role', userData['role'] ?? 'user'),
-              _buildDetailRow('Status', userData['status'] ?? 'active'),
-              _buildDetailRow('Phone', userData['phone'] ?? 'Not provided'),
-              if (userData['createdAt'] != null)
-                _buildDetailRow('Joined', _formatDate((userData['createdAt'] as Timestamp).toDate())),
-              if (userData['lastLogin'] != null)
-                _buildDetailRow('Last Login', _formatDate((userData['lastLogin'] as Timestamp).toDate())),
-            ],
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserDetailViewPage(
+          userId: userId,
+          userData: userData,
+          onVerificationChanged: () {
+            // Refresh the user list when returning
+            setState(() {});
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
   }

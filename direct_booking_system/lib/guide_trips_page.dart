@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/firebase_service.dart';
 import 'trip_application_form.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'components/verification_badge.dart';
 
 class GuideTripsPage extends StatefulWidget {
   const GuideTripsPage({Key? key}) : super(key: key);
@@ -1331,15 +1332,20 @@ class _GuideTripsPageState extends State<GuideTripsPage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          touristProfile?.data() != null 
+                        UserNameWithVerification(
+                          name: touristProfile?.data() != null 
                               ? (touristProfile!.data() as Map<String, dynamic>)['name']?.toString() ?? 'Unknown Tourist'
                               : 'Unknown Tourist',
-                          style: const TextStyle(
+                          verificationStatus: touristProfile?.data() != null 
+                              ? (touristProfile!.data() as Map<String, dynamic>)['verificationStatus']?.toString() ?? 'pending'
+                              : 'pending',
+                          nameStyle: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF2d3748),
                           ),
+                          badgeSize: 18,
+                          showBadgeText: true,
                         ),
                         const SizedBox(height: 4),
                         Text(

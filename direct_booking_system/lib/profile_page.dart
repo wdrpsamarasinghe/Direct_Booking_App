@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/firebase_service.dart';
 import 'edit_profile_page.dart';
+import 'components/verification_badge.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -14,6 +15,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _profileImageUrl;
   String? _userName;
   String? _userBio;
+  String? _verificationStatus;
   bool _isLoading = true;
 
   @override
@@ -36,6 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _profileImageUrl = profileData?['profileImageUrl'];
           _userName = profileData?['name'] ?? 'User';
           _userBio = profileData?['bio'] ?? 'Professional Tour Guide';
+          _verificationStatus = profileData?['verificationStatus'] ?? 'pending';
           _isLoading = false;
         });
       }
@@ -153,13 +156,16 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 20),
           
           // Name and Title
-          Text(
-            _userName ?? 'User',
-            style: const TextStyle(
+          UserNameWithVerification(
+            name: _userName ?? 'User',
+            verificationStatus: _verificationStatus ?? 'pending',
+            nameStyle: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
+            badgeSize: 18,
+            showBadgeText: true,
           ),
           
           const SizedBox(height: 8),

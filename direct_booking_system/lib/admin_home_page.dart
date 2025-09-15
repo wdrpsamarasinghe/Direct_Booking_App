@@ -5,6 +5,8 @@ import 'signin_page.dart';
 import 'theme/app_theme.dart';
 import 'admin_dashboard_simple.dart';
 import 'admin_users_page.dart';
+import 'admin_verification_page.dart';
+import 'components/verification_badge.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({Key? key}) : super(key: key);
@@ -19,6 +21,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   List<Widget> get _pages => [
     AdminDashboardSimple(context: context),
     const AdminUsersPage(),
+    const AdminVerificationPage(),
     const AdminProfilePage(),
   ];
 
@@ -73,6 +76,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
               icon: Icon(Icons.people_outline),
               activeIcon: Icon(Icons.people),
               label: 'Users',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.verified_user_outlined),
+              activeIcon: Icon(Icons.verified_user),
+              label: 'Verify',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.admin_panel_settings_outlined),
@@ -237,13 +245,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         }
                         final data = snapshot.data?.data() as Map<String, dynamic>?;
                         final String name = (data?['name'] as String?) ?? 'Admin';
-                        return Text(
-                          name,
-                          style: const TextStyle(
+                        final String verificationStatus = (data?['verificationStatus'] as String?) ?? 'pending';
+                        return UserNameWithVerification(
+                          name: name,
+                          verificationStatus: verificationStatus,
+                          nameStyle: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF2d3748),
                           ),
+                          badgeSize: 16,
+                          showBadgeText: true,
                         );
                       },
                     ),

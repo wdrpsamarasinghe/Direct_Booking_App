@@ -10,6 +10,7 @@ import 'guide_notifications_page.dart';
 import 'trip_application_form.dart';
 import 'theme/app_theme.dart';
 import 'components/notification_badge.dart';
+import 'components/verification_badge.dart';
 
 class GuideHomePage extends StatefulWidget {
   const GuideHomePage({Key? key}) : super(key: key);
@@ -340,13 +341,17 @@ class _HomeContentState extends State<HomeContent> {
                         }
                         final data = snapshot.data?.data() as Map<String, dynamic>?;
                         final String name = (data?['name'] as String?) ?? 'Guide';
-                        return Text(
-                          name,
-                          style: const TextStyle(
+                        final String verificationStatus = (data?['verificationStatus'] as String?) ?? 'pending';
+                        return UserNameWithVerification(
+                          name: name,
+                          verificationStatus: verificationStatus,
+                          nameStyle: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,
                           ),
+                          badgeSize: 16,
+                          showBadgeText: true,
                         );
                       },
                     ),
