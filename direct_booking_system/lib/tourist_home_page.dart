@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'tourist_trips.dart';
 import 'tourist_ongoing_page.dart';
 import 'components/verification_badge.dart';
+import 'package:video_player/video_player.dart';
 
 class TouristHomePage extends StatefulWidget {
   const TouristHomePage({Key? key}) : super(key: key);
@@ -102,11 +103,45 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
   final FirebaseService _firebaseService = FirebaseService();
   String? _profileImageUrl;
   bool _isLoadingProfile = true;
+  
+  // Video player variables
+  VideoPlayerController? _videoController;
+  bool _isVideoInitialized = false;
+  bool _isVideoPlaying = false;
 
   @override
   void initState() {
     super.initState();
     _loadProfileData();
+    _initializeVideo();
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      // Initialize video controller with your video file
+      _videoController = VideoPlayerController.asset('assets/videos/sri_lanka_tourism.mp4');
+      await _videoController!.initialize();
+      
+      if (mounted) {
+        setState(() {
+          _isVideoInitialized = true;
+        });
+      }
+    } catch (e) {
+      print('Error initializing video: $e');
+      // If video fails to load, we'll show the placeholder
+      if (mounted) {
+        setState(() {
+          _isVideoInitialized = true; // Still show the UI
+        });
+      }
+    }
   }
 
   Future<void> _loadProfileData() async {
@@ -154,8 +189,8 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
               _buildCategories(context),
               const SizedBox(height: 30),
               
-              // Recent Bookings
-              _buildRecentBookings(context),
+              // Video Section
+              _buildVideoSection(context),
             ],
           ),
         ),
@@ -459,144 +494,226 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
     );
   }
 
-  Widget _buildRecentBookings(BuildContext context) {
+  Widget _buildVideoSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Recent Bookings',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2d3748),
-              ),
-            ),
-             TextButton(
-               onPressed: () {
-                 _showAllBookings(context);
-               },
-               child: const Text(
-                 'View All',
-                 style: TextStyle(
-                   color: Color(0xFF667eea),
-                   fontWeight: FontWeight.w600,
-                 ),
-               ),
-             ),
-          ],
+        const Text(
+          'Discover Sri Lanka',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2d3748),
+          ),
         ),
         const SizedBox(height: 15),
-        _buildBookingCard(
-          tour: 'Sigiriya Rock Fortress Tour',
-          date: 'Dec 15, 2024',
-          status: 'Confirmed',
-          isConfirmed: true,
-        ),
-        const SizedBox(height: 12),
-        _buildBookingCard(
-          tour: 'Ella Nine Arch Bridge Adventure',
-          date: 'Dec 20, 2024',
-          status: 'Pending',
-          isConfirmed: false,
-        ),
-        const SizedBox(height: 12),
-        _buildBookingCard(
-          tour: 'Mirissa Whale Watching',
-          date: 'Dec 25, 2024',
-          status: 'Confirmed',
-          isConfirmed: true,
+        Container(
+          width: double.infinity,
+          height: 200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: _isVideoInitialized
+                ? _buildVideoPlayer()
+                : _buildVideoPlaceholder(),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildBookingCard({
-    required String tour,
-    required String date,
-    required String status,
-    required bool isConfirmed,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFF667eea).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(25),
+  Widget _buildVideoPlayer() {
+    if (_videoController != null && _videoController!.value.isInitialized) {
+      return GestureDetector(
+        onTap: _toggleVideoPlayback,
+        child: Stack(
+          children: [
+            // Video player
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _videoController!.value.size.width,
+                  height: _videoController!.value.size.height,
+                  child: VideoPlayer(_videoController!),
+                ),
+              ),
             ),
-            child: const Icon(
-              Icons.explore,
-              color: Color(0xFF667eea),
-              size: 24,
-            ),
-          ),
-          
-          const SizedBox(width: 16),
-          
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tour,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2d3748),
+            // Play/Pause overlay
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(_isVideoPlaying ? 0.0 : 0.3),
+                ),
+                child: Center(
+                  child: AnimatedOpacity(
+                    opacity: _isVideoPlaying ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _isVideoPlaying ? Icons.pause : Icons.play_arrow,
+                        size: 50,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  date,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Show placeholder if video is not loaded
+      return GestureDetector(
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Video loading... Please wait a moment and try again.'),
+              backgroundColor: Color(0xFF667eea),
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF667eea).withOpacity(0.9),
+                const Color(0xFF764ba2).withOpacity(0.9),
               ],
             ),
           ),
-          
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isConfirmed 
-                  ? const Color(0xFF48bb78).withOpacity(0.1)
-                  : const Color(0xFFed8936).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // Background pattern
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: VideoPatternPainter(),
+                ),
+              ),
+              // Content
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.video_library,
+                        size: 60,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Sri Lanka Tourism Video',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Loading video...',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  void _toggleVideoPlayback() {
+    if (_videoController != null && _videoController!.value.isInitialized) {
+      setState(() {
+        if (_isVideoPlaying) {
+          _videoController!.pause();
+          _isVideoPlaying = false;
+        } else {
+          _videoController!.play();
+          _isVideoPlaying = true;
+        }
+      });
+    }
+  }
+
+
+  Widget _buildVideoPlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF667eea).withOpacity(0.8),
+            const Color(0xFF764ba2).withOpacity(0.8),
+          ],
+        ),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.play_circle_filled,
+              size: 60,
+              color: Colors.white,
             ),
-            child: Text(
-              status,
+            SizedBox(height: 12),
+            Text(
+              'Sri Lanka Tourism Video',
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isConfirmed 
-                    ? const Color(0xFF48bb78)
-                    : const Color(0xFFed8936),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
-          ),
-        ],
+            SizedBox(height: 8),
+            Text(
+              'Video loading...',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
 
 
   void _showNotifications(BuildContext context) {
@@ -1393,256 +1510,6 @@ class _TouristHomeContentState extends State<TouristHomeContent> {
     );
   }
 
-  void _showAllBookings(BuildContext context) {
-    final List<Map<String, dynamic>> allBookings = [
-      {
-        'tour': 'Sigiriya Rock Fortress Tour',
-        'date': 'Dec 15, 2024',
-        'status': 'Confirmed',
-        'isConfirmed': true,
-        'price': 'Rs. 8,500',
-        'duration': '4 hours',
-        'participants': '2 people',
-      },
-      {
-        'tour': 'Ella Nine Arch Bridge Adventure',
-        'date': 'Dec 20, 2024',
-        'status': 'Pending',
-        'isConfirmed': false,
-        'price': 'Rs. 12,000',
-        'duration': '6 hours',
-        'participants': '4 people',
-      },
-      {
-        'tour': 'Mirissa Whale Watching',
-        'date': 'Dec 25, 2024',
-        'status': 'Confirmed',
-        'isConfirmed': true,
-        'price': 'Rs. 15,000',
-        'duration': '5 hours',
-        'participants': '3 people',
-      },
-      {
-        'tour': 'Kandy Temple of the Tooth',
-        'date': 'Dec 28, 2024',
-        'status': 'Confirmed',
-        'isConfirmed': true,
-        'price': 'Rs. 6,500',
-        'duration': '3 hours',
-        'participants': '2 people',
-      },
-      {
-        'tour': 'Galle Fort Heritage Walk',
-        'date': 'Jan 2, 2025',
-        'status': 'Pending',
-        'isConfirmed': false,
-        'price': 'Rs. 7,500',
-        'duration': '3 hours',
-        'participants': '5 people',
-      },
-      {
-        'tour': 'Yala National Park Safari',
-        'date': 'Jan 5, 2025',
-        'status': 'Confirmed',
-        'isConfirmed': true,
-        'price': 'Rs. 18,000',
-        'duration': '8 hours',
-        'participants': '6 people',
-      },
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            ),
-            
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Text(
-                    'All Bookings',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2d3748),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    color: Colors.grey[600],
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Bookings List
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: allBookings.length,
-                itemBuilder: (context, index) {
-                  final booking = allBookings[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildDetailedBookingCard(booking),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailedBookingCard(Map<String, dynamic> booking) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF667eea).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: const Icon(
-                  Icons.explore,
-                  color: Color(0xFF667eea),
-                  size: 24,
-                ),
-              ),
-              
-              const SizedBox(width: 16),
-              
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      booking['tour'],
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2d3748),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      booking['date'],
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: booking['isConfirmed'] 
-                      ? const Color(0xFF48bb78).withOpacity(0.1)
-                      : const Color(0xFFed8936).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  booking['status'],
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: booking['isConfirmed'] 
-                        ? const Color(0xFF48bb78)
-                        : const Color(0xFFed8936),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Text(
-                booking['duration'],
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Icon(Icons.people, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Text(
-                booking['participants'],
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const Spacer(),
-              Text(
-                booking['price'],
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF667eea),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // Placeholder pages for other tabs
@@ -3248,6 +3115,42 @@ class _TouristProfileFormState extends State<TouristProfileForm> {
       }
     }
   }
+}
+
+// Custom painter for video background pattern
+class VideoPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..strokeWidth = 1.0;
+
+    // Draw diagonal lines
+    for (int i = 0; i < size.width; i += 20) {
+      canvas.drawLine(
+        Offset(i.toDouble(), 0),
+        Offset(i.toDouble() + size.height, size.height),
+        paint,
+      );
+    }
+
+    // Draw circles
+    for (int i = 0; i < 5; i++) {
+      canvas.drawCircle(
+        Offset(
+          (size.width / 4) * (i + 1),
+          (size.height / 4) * (i % 2 + 1),
+        ),
+        20 + (i * 5),
+        Paint()
+          ..color = Colors.white.withOpacity(0.05)
+          ..style = PaintingStyle.fill,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 
